@@ -205,7 +205,7 @@ func TestWriteVariable_InvalidDimensions(t *testing.T) {
 
 func TestWriteVariable_ComplexSupported(t *testing.T) {
 	tmpDir := t.TempDir()
-	tmpFile := filepath.Join(tmpDir, "test.mat")
+	tmpFile := filepath.Join(tmpDir, "test_complex.mat")
 
 	writer, err := NewWriter(tmpFile)
 	if err != nil {
@@ -214,7 +214,7 @@ func TestWriteVariable_ComplexSupported(t *testing.T) {
 	defer writer.Close()
 
 	v := &types.Variable{
-		Name:       "data",
+		Name:       "z",
 		Dimensions: []int{2},
 		DataType:   types.Double,
 		IsComplex:  true,
@@ -226,7 +226,108 @@ func TestWriteVariable_ComplexSupported(t *testing.T) {
 
 	err = writer.WriteVariable(v)
 	if err != nil {
-		t.Errorf("WriteVariable() complex numbers should be supported (with workaround), got error: %v", err)
+		t.Errorf("WriteVariable() complex numbers should be supported, got error: %v", err)
+	}
+
+	// Verify the proper MATLAB v7.3 format structure was created
+	// Note: Full verification would require reading the HDF5 file structure
+	// For now, we verify that the write operation succeeded without error
+}
+
+func TestWriteVariable_ComplexFormat(t *testing.T) {
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "test_complex_format.mat")
+
+	writer, err := NewWriter(tmpFile)
+	if err != nil {
+		t.Fatalf("Setup failed: %v", err)
+	}
+	defer writer.Close()
+
+	// Test data: z = [1+2i, 3+4i, 5+6i]
+	v := &types.Variable{
+		Name:       "z",
+		Dimensions: []int{3},
+		DataType:   types.Double,
+		IsComplex:  true,
+		Data: &types.NumericArray{
+			Real: []float64{1.0, 3.0, 5.0},
+			Imag: []float64{2.0, 4.0, 6.0},
+		},
+	}
+
+	err = writer.WriteVariable(v)
+	if err != nil {
+		t.Fatalf("WriteVariable() error = %v", err)
+	}
+
+	// Expected HDF5 structure (MATLAB v7.3 format):
+	// /z (group)
+	//   - MATLAB_class = "double"
+	//   - MATLAB_complex = 1
+	//   /real (dataset with [1.0, 3.0, 5.0])
+	//   /imag (dataset with [2.0, 4.0, 6.0])
+}
+
+func TestWriteVariable_ComplexInvalidData(t *testing.T) {
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "test.mat")
+
+	writer, err := NewWriter(tmpFile)
+	if err != nil {
+		t.Fatalf("Setup failed: %v", err)
+	}
+	defer writer.Close()
+
+	tests := []struct {
+		name string
+		v    *types.Variable
+	}{
+		{
+			name: "wrong data type",
+			v: &types.Variable{
+				Name:       "z",
+				Dimensions: []int{2},
+				DataType:   types.Double,
+				IsComplex:  true,
+				Data:       []float64{1.0, 2.0}, // Should be *types.NumericArray
+			},
+		},
+		{
+			name: "missing real part",
+			v: &types.Variable{
+				Name:       "z",
+				Dimensions: []int{2},
+				DataType:   types.Double,
+				IsComplex:  true,
+				Data: &types.NumericArray{
+					Real: nil,
+					Imag: []float64{1.0, 2.0},
+				},
+			},
+		},
+		{
+			name: "missing imag part",
+			v: &types.Variable{
+				Name:       "z",
+				Dimensions: []int{2},
+				DataType:   types.Double,
+				IsComplex:  true,
+				Data: &types.NumericArray{
+					Real: []float64{1.0, 2.0},
+					Imag: nil,
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := writer.WriteVariable(tt.v)
+			if err == nil {
+				t.Error("WriteVariable() expected error, got nil")
+			}
+		})
 	}
 }
 

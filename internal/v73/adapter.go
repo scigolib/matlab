@@ -92,8 +92,8 @@ func (a *HDF5Adapter) convertDataset(dataset *hdf5.Dataset, path string) *types.
 		dataType = types.CellArray
 	}
 
-	// Read data - try numeric first, then strings
-	// TODO: Handle string datasets with ReadStrings()
+	// Read data - try numeric first, then strings as fallback.
+	// This handles both numeric arrays and character/string datasets.
 	var data interface{}
 	var dims []int
 

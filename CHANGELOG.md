@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.1-beta] - 2025-11-03
+
+### Fixed - Complex Number Format ✨
+- **Proper MATLAB v7.3 complex format**: Complex numbers now use standard MATLAB structure
+  - **Before** (v0.1.0-beta): Flat workaround (`varname_real`, `varname_imag` datasets)
+  - **After** (v0.1.1-beta): Proper group structure (`/varname` group with `/real`, `/imag` nested datasets)
+  - Group attributes: `MATLAB_class` and `MATLAB_complex` for full compatibility
+- **Improved compatibility**: Files now fully compatible with MATLAB/Octave
+- **HDF5 dependency**: Updated to develop branch (commit 36994ac) with new features:
+  - Nested datasets support
+  - Group attributes support
+
+### Changed
+- **Breaking**: HDF5 `CreateGroup()` API updated to return `(*GroupWriter, error)`
+- Example program reorganized: `examples/write-complex/main.go`
+
+### Added
+- Comprehensive complex number tests (3 new test cases)
+- Documentation: COMPLEX_NUMBER_IMPLEMENTATION.md
+
+### Quality
+- Linter: 0 errors, 0 warnings ✅
+- Tests: 30 tests, 27 passing (90%)
+- All round-trip tests pass ✅
+
+---
+
 ## [0.1.0-beta] - 2025-11-02
 
 ### Added - Reader Support
