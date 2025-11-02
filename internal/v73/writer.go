@@ -44,6 +44,9 @@ func NewWriter(filename string) (*Writer, error) {
 // appropriate HDF5 datatype and written as a dataset. A MATLAB_class
 // attribute is added to indicate the MATLAB type.
 //
+// For complex numbers, a group structure is created with nested real/imag datasets
+// and appropriate MATLAB_class and MATLAB_complex attributes.
+//
 // Parameters:
 //   - v: Variable to write (must not be nil)
 //
@@ -52,7 +55,7 @@ func NewWriter(filename string) (*Writer, error) {
 //
 // Supported types:
 //   - Double, Single, Int8, Uint8, Int16, Uint16, Int32, Uint32, Int64, Uint64
-//   - Complex numbers (future implementation)
+//   - Complex numbers (stored as HDF5 groups with /real and /imag datasets)
 func (w *Writer) WriteVariable(v *types.Variable) error {
 	// Check for nil first
 	if v == nil {
@@ -64,7 +67,7 @@ func (w *Writer) WriteVariable(v *types.Variable) error {
 		return fmt.Errorf("invalid variable: %w", err)
 	}
 
-	// Handle complex numbers separately (future implementation)
+	// Handle complex numbers separately (group structure with nested datasets)
 	if v.IsComplex {
 		return w.writeComplexVariable(v)
 	}
@@ -124,16 +127,14 @@ func (w *Writer) writeSimpleVariable(v *types.Variable) error {
 	return nil
 }
 
-// writeComplexVariable writes complex variable (real + imaginary).
+// writeComplexVariable writes complex variable in proper MATLAB v7.3 format.
 //
-// WORKAROUND: Due to HDF5 library limitations, complex numbers are stored as
-// two separate datasets at root level:
-// - varname_real: real part
-// - varname_imag: imaginary part
+// MATLAB v7.3 stores complex numbers as HDF5 groups with nested datasets:
+// - /varname (group with MATLAB_class and MATLAB_complex attributes)
+//   - /real (dataset containing real part)
+//   - /imag (dataset containing imaginary part)
 //
-// Standard MATLAB format uses groups (/varname/real, /varname/imag), but the
-// HDF5 library doesn't yet support nested datasets or group attributes.
-// See: docs/dev/notes/BUG_REPORT_HDF5_GROUP_ATTRIBUTES.md.
+// This matches the standard MATLAB format specification for HDF5-based .mat files.
 func (w *Writer) writeComplexVariable(v *types.Variable) error {
 	// Extract real and imaginary parts
 	numArray, ok := v.Data.(*types.NumericArray)
@@ -160,44 +161,45 @@ func (w *Writer) writeComplexVariable(v *types.Variable) error {
 		return fmt.Errorf("unsupported data type: %w", err)
 	}
 
-	// Create real dataset (flat structure workaround)
-	realName := v.Name + "_real"
-	realDataset, err := w.file.CreateDataset("/"+realName, hdf5Type, dims)
+	// Step 1: Create group for variable
+	group, err := w.file.CreateGroup("/" + v.Name)
+	if err != nil {
+		return fmt.Errorf("failed to create group for complex variable: %w", err)
+	}
+
+	// Step 2: Write MATLAB metadata to group
+	matlabClass := w.dataTypeToMatlabClass(v.DataType)
+	if err := group.WriteAttribute("MATLAB_class", matlabClass); err != nil {
+		return fmt.Errorf("failed to write MATLAB_class attribute: %w", err)
+	}
+
+	// MATLAB_complex attribute indicates this is a complex number
+	if err := group.WriteAttribute("MATLAB_complex", uint8(1)); err != nil {
+		return fmt.Errorf("failed to write MATLAB_complex attribute: %w", err)
+	}
+
+	// Step 3: Create nested datasets for real/imag parts
+	realPath := "/" + v.Name + "/real"
+	imagPath := "/" + v.Name + "/imag"
+
+	realDataset, err := w.file.CreateDataset(realPath, hdf5Type, dims)
 	if err != nil {
 		return fmt.Errorf("failed to create real dataset: %w", err)
 	}
 
-	// Write real data
-	if err := realDataset.Write(numArray.Real); err != nil {
-		return fmt.Errorf("failed to write real data: %w", err)
-	}
-
-	// Add MATLAB_class attribute to real dataset
-	matlabClass := w.dataTypeToMatlabClass(v.DataType)
-	if err := realDataset.WriteAttribute("MATLAB_class", matlabClass); err != nil {
-		return fmt.Errorf("failed to write MATLAB_class attribute: %w", err)
-	}
-
-	// Create imaginary dataset (flat structure workaround)
-	imagName := v.Name + "_imag"
-	imagDataset, err := w.file.CreateDataset("/"+imagName, hdf5Type, dims)
+	imagDataset, err := w.file.CreateDataset(imagPath, hdf5Type, dims)
 	if err != nil {
 		return fmt.Errorf("failed to create imaginary dataset: %w", err)
 	}
 
-	// Write imaginary data
+	// Step 4: Write data
+	if err := realDataset.Write(numArray.Real); err != nil {
+		return fmt.Errorf("failed to write real data: %w", err)
+	}
+
 	if err := imagDataset.Write(numArray.Imag); err != nil {
 		return fmt.Errorf("failed to write imaginary data: %w", err)
 	}
-
-	// Add MATLAB_class attribute to imaginary dataset
-	if err := imagDataset.WriteAttribute("MATLAB_class", matlabClass); err != nil {
-		return fmt.Errorf("failed to write MATLAB_class attribute: %w", err)
-	}
-
-	// Note: MATLAB_complex attribute would normally indicate this is a complex variable,
-	// but HDF5 library has issues writing multiple attributes.
-	// The _real/_imag suffix is sufficient for identification.
 
 	return nil
 }

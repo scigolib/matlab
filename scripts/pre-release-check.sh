@@ -181,7 +181,7 @@ else
             WSL_PATH="/mnt/$DRIVE_LETTER${PATH_WITHOUT_DRIVE//\\//}"
         fi
 
-        TEST_CMD="wsl -d \"$WSL_DISTRO\" bash -c \"cd \\\"$WSL_PATH\\\" && go test -race ./... 2>&1\""
+        TEST_CMD="wsl -d \"$WSL_DISTRO\" bash -c \"cd \\\"$WSL_PATH\\\" && go test -race -ldflags '-linkmode=external' ./... 2>&1\""
     else
         log_warning "GCC not found, running tests WITHOUT race detector"
         log_info "Install GCC (mingw-w64) or setup WSL2 with Go for race detection"
@@ -195,8 +195,8 @@ fi
 
 log_info "Running tests..."
 if [ $USE_WSL -eq 1 ]; then
-    # WSL2: Use timeout (3 min) and unbuffered output
-    TEST_OUTPUT=$(wsl -d "$WSL_DISTRO" bash -c "cd $WSL_PATH && timeout 180 stdbuf -oL -eL go test -race ./... 2>&1" || true)
+    # WSL2: Use timeout (3 min) and unbuffered output with external linkmode for Gentoo
+    TEST_OUTPUT=$(wsl -d "$WSL_DISTRO" bash -c "cd $WSL_PATH && timeout 180 stdbuf -oL -eL go test -race -ldflags '-linkmode=external' ./... 2>&1" || true)
     if [ -z "$TEST_OUTPUT" ]; then
         log_error "WSL2 tests timed out or failed to run"
         ERRORS=$((ERRORS + 1))
@@ -205,9 +205,10 @@ else
     TEST_OUTPUT=$(eval "$TEST_CMD")
 fi
 
-# Check if race detector failed to build (known issue with some Go versions)
+# Check if race detector failed to build (should not happen with external linkmode)
 if echo "$TEST_OUTPUT" | grep -q "hole in findfunctab\|build failed.*race"; then
-    log_warning "Race detector build failed (known Go runtime issue)"
+    log_warning "Race detector build failed (Gentoo build configuration issue)"
+    log_info "Note: This should not happen with -ldflags '-linkmode=external'"
     log_info "Falling back to tests without race detector..."
 
     if [ $USE_WSL -eq 1 ]; then
