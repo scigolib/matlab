@@ -1,0 +1,215 @@
+# GolangCI-Lint v2.5 Configuration for MATLAB File Reader
+# Documentation: https://golangci-lint.run/docs/configuration/
+# Copied from: github.com/scigolib/hdf5 (reference project)
+# AGGRESSIVE CONFIGURATION - Catches more issues during development
+
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  # Enable comprehensive set of linters for production-quality code
+  enable:
+    # Code quality and complexity
+    - gocyclo       # Check cyclomatic complexity
+    - gocognit      # Check cognitive complexity
+    - funlen        # Check function length
+    - maintidx      # Maintainability index
+    - cyclop        # Check cyclomatic complexity (alternative)
+    - nestif        # Reports deeply nested if statements
+
+    # Bug detection
+    - govet         # Standard Go vet (includes copylocks!)
+    - staticcheck   # Comprehensive static analysis
+    - errcheck      # Check that errors are handled
+    - errorlint     # Check error wrapping
+    - gosec         # Security issues
+    - nilnil        # Check that functions don't return nil both ways
+    - nilerr        # Check nil error returns
+    - nilnesserr    # Check nil error returns patterns
+    - ineffassign   # Detect ineffectual assignments
+
+    # Code style and consistency
+    - misspell      # Check for misspelled words
+    - whitespace    # Check for trailing whitespace
+    - unconvert     # Remove unnecessary type conversions
+    - unparam       # Detect unused function parameters
+
+    # Naming conventions
+    - errname       # Check error naming conventions
+    - revive        # Fast, configurable, extensible linter
+
+    # Performance
+    - prealloc      # Find slice declarations that could be preallocated
+    - bodyclose     # Check HTTP response bodies are closed
+    - makezero      # Find slice declarations with non-zero initial length
+
+    # Code practices
+    - goconst       # Find repeated strings that could be constants
+    - gocritic      # Comprehensive code checker
+    - goprintffuncname  # Check printf-like function names
+    - nolintlint    # Check nolint directives are used correctly
+    - nakedret      # Checks for naked returns
+
+    # Comments and documentation
+    - godot         # Check comments end in periods
+    # godox disabled - TODO comments are acceptable during development
+
+    # Additional quality checkers
+    - dupl          # Detect duplicate code
+    - dogsled       # Check for assignments with too many blank identifiers
+    - durationcheck # Check for two durations multiplied together
+
+  settings:
+    govet:
+      # EXPLICITLY ENABLE copylocks to catch mutex copying issues
+      enable:
+        - copylocks
+      # Disable fieldalignment (memory optimization not critical)
+      disable:
+        - fieldalignment
+
+    gocyclo:
+      # Lower threshold for production code
+      min-complexity: 15
+
+    cyclop:
+      # Max complexity
+      max-complexity: 15
+
+    funlen:
+      # Allow reasonably long functions for HDF5 parsing logic
+      lines: 120
+      statements: 60
+
+    gocognit:
+      # Cognitive complexity threshold
+      min-complexity: 20
+
+    misspell:
+      locale: US
+
+    nestif:
+      # Max nesting level
+      min-complexity: 4
+
+    revive:
+      # Enable important rules for code quality
+      rules:
+        - name: var-naming
+        - name: exported
+        - name: error-return
+        - name: error-naming
+        - name: if-return
+        - name: increment-decrement
+        - name: var-declaration
+        - name: package-comments
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: indent-error-flow
+        - name: errorf
+        - name: empty-block
+        - name: superfluous-else
+        - name: unused-parameter
+        - name: unreachable-code
+        - name: redefines-builtin-id
+
+    gocritic:
+      # Enable important checks
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+
+      # Disable overly opinionated/experimental checks
+      disabled-checks:
+        - commentFormatting  # Too opinionated about comment style
+        - whyNoLint          # We document nolints when needed
+        - unnamedResult      # Named results can reduce readability
+        - commentedOutCode   # False positives on test data comments
+
+      settings:
+        hugeParam:
+          # HDF5 structures can be large (headers, datatypes)
+          # Default is 80 bytes, allow larger structs for HDF5 parsing
+          sizeThreshold: 256
+
+  # Exclusions (v2 structure: linters.exclusions.rules)
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - gocyclo
+          - cyclop
+          - funlen
+          - maintidx
+          - errcheck
+          - gosec
+          - goconst
+          - dupl
+
+      # internal/utils - utility package name is acceptable
+      - path: internal/utils/.*\.go
+        linters:
+          - revive        # Skip package naming rules
+        text: "var-naming: avoid meaningless package names"
+
+      # types/ - standard pattern for type definitions (like k8s.io/api/core/v1/types.go)
+      - path: types/.*\.go
+        linters:
+          - revive
+        text: "var-naming: avoid meaningless package names"
+
+      - path: ".*\\.pb\\.go"  # Generated files
+        linters:
+          - revive
+          - gocritic
+
+      # cmd/ and scripts/ - utility programs can be less strict
+      - path: (cmd|scripts)/.*\.go
+        linters:
+          - gocognit     # Command-line tools can be complex
+          - nestif       # CLI logic acceptable
+          - funlen       # Main functions can be longer
+          - gocyclo      # CLI complexity acceptable
+          - cyclop       # CLI complexity acceptable
+          - godot        # Command output formatting
+          - gosec        # CLI file operations acceptable
+          - gocritic     # CLI patterns acceptable
+
+      # MATLAB format parsing - complex HDF5/MATLAB v7.3 format handling
+      - path: internal/v73/.*\.go
+        linters:
+          - funlen       # Format parsing naturally longer
+          - gocyclo      # Multiple format handling
+          - cyclop       # Version branching complexity
+          - nestif       # Format-specific logic nesting
+          - gocognit     # Complex format processing
+
+      # Examples - demonstration code can be verbose
+      # Multiple main() functions in examples/ is expected (each is standalone)
+      - path: examples/.*\.go
+        linters:
+          - errcheck     # Examples may skip error handling for clarity
+          - errorlint    # Examples may use %v instead of %w
+          - funlen       # Example functions can be longer
+          - gocyclo      # Example complexity acceptable
+          - cyclop       # Example complexity acceptable
+          - gocognit     # Example complexity acceptable
+          - typecheck    # Skip typecheck for examples (multiple main)
+          - godot        # Example comments don't need periods
+          - revive       # Examples don't need full documentation
+          - gosec        # Examples may have security warnings
+          - gocritic     # Example patterns may differ
+
+issues:
+  # Show all issues
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+  # Don't hide new issues in existing files
+  new: false
