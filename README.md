@@ -144,7 +144,7 @@ func main() {
 | Function handles     | ❌           | ❌           |
 | Objects              | ❌           | ❌           |
 
-### Writer Support (v0.1.0-beta)
+### Writer Support (v0.1.1-beta)
 
 | Feature              | v5 (v5-v7.2) | v7.3+ (HDF5) |
 |----------------------|--------------|--------------|
@@ -156,13 +156,10 @@ func main() {
 | Cell arrays          | ❌ Future    | ❌ Future    |
 | Compression          | ❌ Future    | ❌ Future    |
 
-\* Complex numbers use workaround format (see Known Limitations)
-
-## Known Limitations (v0.1.0-beta)
+## Known Limitations (v0.1.1-beta)
 
 ### Writer Limitations
-- **v5 format writing not yet implemented** (coming in next release)
-- **Complex numbers workaround**: Stored as flat structure (`varname_real`, `varname_imag`) instead of standard MATLAB groups due to HDF5 library limitations
+- **v5 format writing not yet implemented** (coming in v0.2.0)
 - No compression support yet
 - No structures/cell arrays writing yet
 
@@ -174,7 +171,7 @@ func main() {
 ### What Works Well ✅
 - All numeric types (double, single, int8-64, uint8-64)
 - Multi-dimensional arrays (write)
-- Complex numbers (with workaround)
+- **Complex numbers** (proper MATLAB v7.3 format) ✨ FIXED in v0.1.1-beta
 - Round-trip write → read verified
 - Cross-platform (Windows, Linux, macOS)
 
@@ -192,7 +189,7 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed limitations and planned fixes.
 
 ### Requirements
 - Go 1.25 or later
-- HDF5 library (for v7.3+ support): `github.com/scigolib/hdf5` v0.11.4-beta
+- HDF5 library (for v7.3+ support): `github.com/scigolib/hdf5` develop branch (commit 36994ac)
 - No external C dependencies
 
 ### Building
@@ -315,9 +312,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Status**: Beta - Read and Write support for v7.3 format
-**Version**: v0.1.0-beta
-**Last Updated**: 2025-11-02
+**Status**: Beta - Read and Write support for v7.3 format (proper complex numbers!)
+**Version**: v0.1.1-beta
+**Last Updated**: 2025-11-03
 
 **Ready for**: Testing, feedback, and real-world usage
 **Not ready for**: Production use (API may change)
