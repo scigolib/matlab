@@ -2,8 +2,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/scigolib/hdf5 v0.11.4-beta.0.20251102203726-36994ac49d68 h1:M3tA2rPNnHKxFTlCLLYvu/k5UV0p3E8mPCXH9e0suJA=
-github.com/scigolib/hdf5 v0.11.4-beta.0.20251102203726-36994ac49d68/go.mod h1:7KLvpsidPPQjmd83dKH8RazoKXdbCO+FItz7ksezhrY=
+github.com/scigolib/hdf5 v0.11.5-beta h1:mLXwS3pU6+PyI3iW+QPCxG3hHpYR4eGzHvEgR1zic/s=
+github.com/scigolib/hdf5 v0.11.5-beta/go.mod h1:7KLvpsidPPQjmd83dKH8RazoKXdbCO+FItz7ksezhrY=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
