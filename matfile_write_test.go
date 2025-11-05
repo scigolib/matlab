@@ -24,13 +24,19 @@ func TestCreate_v73(t *testing.T) {
 	}
 }
 
-func TestCreate_v5_NotSupported(t *testing.T) {
+func TestCreate_v5(t *testing.T) {
 	tmpDir := t.TempDir()
-	tmpFile := filepath.Join(tmpDir, "test.mat")
+	tmpFile := filepath.Join(tmpDir, "test_create_v5.mat")
 
-	_, err := Create(tmpFile, Version5)
-	if err == nil {
-		t.Error("Create() expected error for v5, got nil")
+	writer, err := Create(tmpFile, Version5)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	defer func() { _ = writer.Close() }()
+
+	// File should exist
+	if _, err := os.Stat(tmpFile); os.IsNotExist(err) {
+		t.Error("File was not created")
 	}
 }
 
@@ -170,10 +176,7 @@ func TestRoundTrip_v73_SimpleDouble(t *testing.T) {
 }
 
 // TestRoundTrip_v73_Matrix tests writing and reading 2D arrays.
-// Note: Currently the reader flattens multi-dimensional arrays (known limitation).
 func TestRoundTrip_v73_Matrix(t *testing.T) {
-	t.Skip("Skipping due to reader limitation: multi-dimensional arrays are read as 1D")
-
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "test_round_trip_matrix.mat")
 
@@ -278,10 +281,7 @@ func TestRoundTrip_v73_AllNumericTypes(t *testing.T) {
 }
 
 // TestRoundTrip_v73_3DArray tests writing 3D arrays.
-// Note: Skipped due to reader limitation with multi-dimensional arrays.
 func TestRoundTrip_v73_3DArray(t *testing.T) {
-	t.Skip("Skipping due to reader limitation: multi-dimensional arrays are read as 1D")
-
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "test_round_trip_3d.mat")
 
@@ -308,10 +308,7 @@ func TestRoundTrip_v73_3DArray(t *testing.T) {
 }
 
 // TestRoundTrip_v73_MultipleVariables tests writing multiple variables.
-// Note: Skipped due to reader limitation with multiple datasets.
 func TestRoundTrip_v73_MultipleVariables(t *testing.T) {
-	t.Skip("Skipping due to reader limitation: cannot read files with multiple datasets")
-
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "test_round_trip_multiple.mat")
 

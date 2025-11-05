@@ -58,7 +58,8 @@ func isHDF5Format(header []byte) bool {
 
 // isV5Format checks for v5 format signature.
 func isV5Format(header []byte) bool {
-	endian := string(header[124:128])
+	// Check endian indicator at bytes 126-127
+	endian := string(header[126:128])
 	return endian == "IM" || endian == "MI"
 }
 

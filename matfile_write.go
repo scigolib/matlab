@@ -3,7 +3,9 @@ package matlab
 import (
 	"errors"
 	"fmt"
+	"os"
 
+	"github.com/scigolib/matlab/internal/v5"
 	"github.com/scigolib/matlab/internal/v73"
 	"github.com/scigolib/matlab/types"
 )
@@ -13,11 +15,11 @@ type Version int
 
 const (
 	// Version5 represents v5-v7.2 format (binary format).
-	// Note: v5 writer is not yet implemented (planned for v0.3.0).
+	// Recommended for smaller files and maximum compatibility.
 	Version5 Version = 5
 
 	// Version73 represents v7.3+ format (HDF5-based).
-	// This is the recommended format for new files.
+	// Recommended for large files and modern MATLAB versions.
 	Version73 Version = 73
 )
 
@@ -33,8 +35,9 @@ type MatFileWriter struct {
 	// v7.3 specific
 	v73writer *v73.Writer
 
-	// v5 specific (future)
-	// v5writer *v5.Writer
+	// v5 specific
+	v5writer *v5.Writer
+	v5file   *os.File
 }
 
 // Create creates a new MATLAB file for writing.
@@ -70,7 +73,7 @@ func Create(filename string, version Version) (*MatFileWriter, error) {
 	case Version73:
 		return createV73(filename)
 	case Version5:
-		return nil, errors.New("v5 writer not yet implemented (planned for v0.3.0)")
+		return createV5(filename)
 	default:
 		return nil, fmt.Errorf("unsupported MAT-file version: %d", version)
 	}
@@ -87,6 +90,31 @@ func createV73(filename string) (*MatFileWriter, error) {
 		filename:  filename,
 		version:   Version73,
 		v73writer: writer,
+	}, nil
+}
+
+// createV5 creates a v5 format writer.
+func createV5(filename string) (*MatFileWriter, error) {
+	// Create file
+	//nolint:gosec // G304: filename is provided by user for MAT-file creation, expected behavior
+	f, err := os.Create(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create file: %w", err)
+	}
+
+	// Create v5 writer (writes header immediately)
+	writer, err := v5.NewWriter(f, "MATLAB 5.0 MAT-file, created by scigolib/matlab", "MI")
+	if err != nil {
+		//nolint:errcheck,gosec // G104: File cleanup after error, error logged elsewhere
+		f.Close()
+		return nil, fmt.Errorf("failed to create v5 writer: %w", err)
+	}
+
+	return &MatFileWriter{
+		filename: filename,
+		version:  Version5,
+		v5writer: writer,
+		v5file:   f,
 	}, nil
 }
 
@@ -139,7 +167,10 @@ func (w *MatFileWriter) WriteVariable(v *types.Variable) error {
 		}
 		return w.v73writer.WriteVariable(v)
 	case Version5:
-		return errors.New("v5 writer not yet implemented")
+		if w.v5writer == nil {
+			return errors.New("v5 writer is not initialized")
+		}
+		return w.v5writer.WriteVariable(v)
 	default:
 		return fmt.Errorf("unsupported version: %d", w.version)
 	}
@@ -164,7 +195,12 @@ func (w *MatFileWriter) Close() error {
 		}
 		return nil
 	case Version5:
-		// Future: close v5 writer
+		if w.v5file != nil {
+			err := w.v5file.Close()
+			w.v5writer = nil // Mark as closed
+			w.v5file = nil
+			return err
+		}
 		return nil
 	default:
 		return nil
