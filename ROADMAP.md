@@ -2,7 +2,7 @@
 
 > **Strategic Approach**: Leverage existing HDF5 library and MATLAB documentation
 
-**Last Updated**: 2025-11-03 | **Current Version**: v0.1.1-beta (RELEASED ✅) | **Target**: v1.0.0 stable (2026)
+**Last Updated**: 2025-11-06 | **Current Version**: v0.2.0-beta (RELEASED ✅) | **Target**: v1.0.0 stable (2026)
 
 ---
 
@@ -40,8 +40,8 @@ Build a **production-ready, pure Go MATLAB file library** with comprehensive **r
 v0.1.0-beta (RELEASED ✅) → Reader v5/v7.3 + Writer v7.3 (workaround complex)
          ↓ (1 day!)
 v0.1.1-beta (RELEASED ✅) → Proper MATLAB complex format + race detector fix
-         ↓ (3-4 weeks)
-v0.2.0 → v5 Writer + bug fixes + improvements
+         ↓ (3 days!)
+v0.2.0-beta (RELEASED ✅) → v5 Writer + parser bug fixes + comprehensive tests
          ↓ (2-3 weeks)
 v0.3.0 → Functional Options Pattern (flexible API)
          ↓ (2-3 weeks)
@@ -64,7 +64,7 @@ v2.0.0 → Only if breaking changes needed
 
 ---
 
-## 📊 Current Status (v0.1.1-beta - RELEASED)
+## 📊 Current Status (v0.2.0-beta - RELEASED)
 
 ### ✅ What's Working Now
 
@@ -76,44 +76,54 @@ v2.0.0 → Only if breaking changes needed
 - ✅ Git-Flow workflow, Kanban task management
 - ✅ Production-quality code (golangci-lint: 0 issues)
 
-**Reader Implementation** (85%):
+**Reader Implementation** (100%):
 - ✅ Format auto-detection (v5/v7.3)
 - ✅ `Open(io.Reader)` public API
 - ✅ Type system (Variable, DataType, NumericArray)
 - ✅ v5 parser: streaming, all numeric types
 - ✅ v73 adapter: HDF5 integration
-- ⚠️ Known bugs: multi-dim arrays read as 1D, multiple vars
-- ❌ Compression, structures/cells (partial)
+- ✅ **Parser bugs FIXED** ✨ NEW in v0.2.0-beta
+  - ✅ Multi-dimensional arrays now work correctly
+  - ✅ Multiple variables in one file supported
+  - ✅ Critical tag format detection bug fixed
+- ⚠️ Compression, structures/cells (partial)
 
-**Writer Implementation** (55%):
+**Writer Implementation** (95%):
+- ✅ **v5 Writer COMPLETE** ✨ NEW in v0.2.0-beta
+  - ✅ All numeric types (double, single, int8-64, uint8-64)
+  - ✅ Complex numbers (proper v5 format)
+  - ✅ Multi-dimensional arrays (1D, 2D, 3D, N-D)
+  - ✅ Both endianness (MI/IM)
+  - ✅ Proper 8-byte alignment and padding
 - ✅ v7.3 Writer COMPLETE (HDF5-based)
 - ✅ `Create()`, `WriteVariable()`, `Close()` API
-- ✅ All numeric types (double, single, int8-64, uint8-64)
-- ✅ **Complex numbers (proper MATLAB v7.3 format)** ✨ FIXED in v0.1.1-beta
-- ✅ Multi-dimensional arrays
-- ✅ Round-trip verified: write → read → ✅ PASSED
+- ✅ **Complex numbers (proper MATLAB v7.3 format)** (v0.1.1-beta)
+- ✅ Round-trip verified: write → read → ✅ PASSED (both v5 and v7.3)
 - ✅ 11 test files generated (testdata/)
-- ✅ **Race detector working** (Gentoo WSL2 fix) ✨ NEW in v0.1.1-beta
-- ❌ v5 Writer (TASK-011) - next milestone
+- ✅ **Race detector working** (Gentoo WSL2 fix) (v0.1.1-beta)
+- ⚠️ Character arrays (partial for v5)
 
 **Quality Metrics**:
-- ✅ Test coverage: 48.8% (30 tests, 27 passing, 90%)
+- ✅ Test coverage: 78.5% (main), 51.8% (v5), 48.8% (v73)
+- ✅ Tests: 100% passing (all previously skipped tests fixed)
 - ✅ Linter: 0 errors, 0 warnings
-- ✅ **Race detector: WORKING** (0 races detected) ✨ NEW
+- ✅ **Race detector: WORKING** (0 races detected)
 - ✅ CI/CD: All checks GREEN ✅
 - ✅ Documentation: Comprehensive
 - ✅ API design: 90/100 (2025 Go best practices)
-- ✅ Repository: PUBLIC, Google indexing started
+- ✅ Repository: PUBLIC, Google indexing active
 
 **Known Limitations** (documented in CHANGELOG):
-- ⚠️ Reader bugs: multi-dimensional arrays, multiple variables
-- ❌ v5 Writer not yet implemented
+- ⚠️ Character arrays (partial support for v5 Writer)
 - ❌ Compression not supported
 - ❌ Structures/cells not supported for writing
 
-**Fixed in v0.1.1-beta**:
-- ✅ Complex numbers now use proper MATLAB v7.3 format (group with nested datasets)
-- ✅ Race detector now works in Gentoo WSL2 (external linkmode fix)
+**Fixed in v0.2.0-beta**:
+- ✅ v5 Writer fully implemented (565 lines)
+- ✅ Critical parser bug fixed (tag format detection)
+- ✅ Multi-dimensional arrays working in reader
+- ✅ Multiple variables per file working in reader
+- ✅ All round-trip tests passing (100%)
 
 ---
 
@@ -137,6 +147,35 @@ v2.0.0 → Only if breaking changes needed
 **Tasks**: TASK-001 to TASK-010
 **Duration**: Completed
 **Status**: ✅ RELEASED 2025-11-02
+
+---
+
+### **Phase 2: v0.2.0-beta - v5 Writer + Parser Fixes** ✅ COMPLETE
+
+**Goal**: Complete MATLAB v5 format writer and fix critical parser bugs
+
+**Deliverables**:
+1. ✅ v5 Writer implementation (565 lines core code)
+2. ✅ Comprehensive unit tests (589 lines, 17+ test functions)
+3. ✅ Round-trip tests (430 lines, v5 write → read → verify)
+4. ✅ Critical parser bug fix (tag format detection)
+5. ✅ Multi-dimensional arrays support in reader
+6. ✅ Multiple variables per file support in reader
+7. ✅ Both endianness support (MI/IM)
+8. ✅ All numeric types + complex numbers for v5
+9. ✅ Documentation updates (README, CHANGELOG, ROADMAP)
+10. ✅ Production quality: 0 linter issues, all tests passing
+
+**Tasks**: TASK-011 (v5 Writer + Parser Fixes)
+**Duration**: 3 days (2025-11-04 to 2025-11-06)
+**Status**: ✅ RELEASED 2025-11-06
+
+**Key Achievements**:
+- v5 Writer implementation: 565 lines of production code
+- Parser bug fix: Single critical fix resolved 3 major bugs
+- Test quality: 100% passing, 78.5% coverage (main package)
+- Code quality: 0 linter errors, professional Go code
+- Round-trip verification: Both v5 and v7.3 formats working perfectly
 
 ---
 
@@ -321,26 +360,24 @@ v2.0.0 → Only if breaking changes needed
 
 ---
 
-## 🎯 Current Focus (Post v0.1.0-beta)
+## 🎯 Current Focus (Post v0.2.0-beta)
 
-### Immediate Priorities (Next 1-2 Weeks)
+### Immediate Priorities (Next 2-3 Weeks)
 
-**Decision Point**: Wait for HDF5 v0.11.5-beta or start v5 Writer?
-- **Option A**: Wait 1-2 weeks for HDF5 proper complex format → v0.1.1-beta
-- **Option B**: Start v5 Writer now → v0.2.0 (3-4 weeks)
+**Focus**: v0.3.0 - Functional Options Pattern + Quality Improvements
 
-**Meanwhile**:
-1. **Community Engagement** ⭐
+**Planned Work**:
+1. **API Enhancement** ⭐
+   - Functional Options Pattern (TASK-012)
+   - `WithCompression()`, `WithEndianness()` options
+   - Backward-compatible API improvements
+   - Context Support (TASK-013) - cancellable operations
+
+2. **Community Engagement** ⭐
    - Monitor GitHub issues
    - Respond to questions
    - Gather feature requests
-   - Collect feedback on API
-
-2. **Bug Fixes** ⭐
-   - Fix reader: multi-dimensional arrays read as 1D
-   - Fix reader: can't read files with multiple datasets
-   - Improve error messages
-   - Add more examples
+   - Collect feedback on v0.2.0-beta API
 
 3. **Documentation** ⭐
    - Add more examples to README
@@ -348,10 +385,11 @@ v2.0.0 → Only if breaking changes needed
    - API reference documentation
    - Performance tips
 
-4. **HDF5 Collaboration** ⭐
-   - Respond to HDF5 team questions
-   - Provide test files for their testing
-   - Test their v0.11.5-beta when ready
+4. **Quality Improvements** ⭐
+   - Increase test coverage to 80%+
+   - Add more edge case tests
+   - Performance benchmarks
+   - Memory optimization
 
 ---
 
@@ -359,8 +397,8 @@ v2.0.0 → Only if breaking changes needed
 
 **Required**:
 - Go 1.25+
-- github.com/scigolib/hdf5 v0.11.4-beta (for v7.3 support)
-  - Future: v0.11.5-beta will add proper complex format support
+- github.com/scigolib/hdf5 v0.11.5-beta (for v7.3 support)
+  - Includes nested datasets and group attributes support
 
 **Development**:
 - golangci-lint v2.5+ (code quality)
