@@ -21,8 +21,8 @@ A modern, pure Go library for **reading and writing** MATLAB `.mat` files withou
 ✨ **Read & Write Support**
 - 📖 Read MATLAB v5-v7.2 files (traditional format)
 - 📖 Read MATLAB v7.3+ files (HDF5 format)
-- ✍️ **Write MATLAB v7.3+ files** (HDF5 format) - NEW!
-- ✍️ Write v5 format (coming in v0.2.0)
+- ✍️ **Write MATLAB v7.3+ files** (HDF5 format)
+- ✍️ **Write MATLAB v5-v7.2 files** (traditional format) - **NEW in v0.2.0!**
 
 🎯 **Key Capabilities**
 - Simple, intuitive API
@@ -88,6 +88,8 @@ func main() {
 
 ### Writing MAT-Files
 
+#### v7.3 Format (HDF5-based)
+
 ```go
 package main
 
@@ -134,6 +136,65 @@ func main() {
 }
 ```
 
+#### v5 Format (Traditional Binary) - **NEW in v0.2.0!**
+
+```go
+package main
+
+import (
+	"log"
+
+	"github.com/scigolib/matlab"
+	"github.com/scigolib/matlab/types"
+)
+
+func main() {
+	// Create new MAT-file (v5 format - legacy compatible)
+	writer, err := matlab.Create("output_v5.mat", matlab.Version5)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer writer.Close()
+
+	// Write a simple array
+	err = writer.WriteVariable(&types.Variable{
+		Name:       "A",
+		Dimensions: []int{3},
+		DataType:   types.Double,
+		Data:       []float64{1.0, 2.0, 3.0},
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Write a matrix (multi-dimensional)
+	err = writer.WriteVariable(&types.Variable{
+		Name:       "B",
+		Dimensions: []int{2, 3},
+		DataType:   types.Double,
+		Data:       []float64{1, 2, 3, 4, 5, 6},
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Write complex numbers
+	err = writer.WriteVariable(&types.Variable{
+		Name:       "C",
+		Dimensions: []int{2},
+		DataType:   types.Double,
+		IsComplex:  true,
+		Data: &types.NumericArray{
+			Real: []float64{1.0, 2.0},
+			Imag: []float64{3.0, 4.0},
+		},
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+```
+
 ## Supported Features
 
 ### Reader Support
@@ -151,14 +212,15 @@ func main() {
 | Function handles     | ❌           | ❌           |
 | Objects              | ❌           | ❌           |
 
-### Writer Support (v0.1.1-beta)
+### Writer Support (v0.2.0)
 
 | Feature              | v5 (v5-v7.2) | v7.3+ (HDF5) |
 |----------------------|--------------|--------------|
-| Numeric arrays       | 📋 Planned   | ✅           |
-| Complex numbers      | 📋 Planned   | ✅*          |
-| Character arrays     | 📋 Planned   | ✅           |
-| Multi-dimensional    | 📋 Planned   | ✅           |
+| Numeric arrays       | ✅           | ✅           |
+| Complex numbers      | ✅           | ✅           |
+| Character arrays     | ⚠️ Partial   | ✅           |
+| Multi-dimensional    | ✅           | ✅           |
+| Both endianness      | ✅ MI/IM     | N/A          |
 | Structures           | ❌ Future    | ❌ Future    |
 | Cell arrays          | ❌ Future    | ❌ Future    |
 | Compression          | ❌ Future    | ❌ Future    |

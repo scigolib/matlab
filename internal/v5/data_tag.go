@@ -12,6 +12,11 @@ type DataTag struct {
 }
 
 // readTag reads a data tag from the stream.
+//
+// MAT-file v5 uses two tag formats:
+//   - Small format (8 bytes total): Upper 16 bits of first word = size (1-4),
+//     lower 16 bits = type, bytes 4-7 = packed data.
+//   - Regular format (8 bytes tag + N bytes data): bytes 0-3 = type, bytes 4-7 = size.
 func (p *Parser) readTag() (*DataTag, error) {
 	buf := make([]byte, 8)
 	if _, err := io.ReadFull(p.r, buf); err != nil {
@@ -19,33 +24,27 @@ func (p *Parser) readTag() (*DataTag, error) {
 	}
 	p.pos += 8
 
-	firstWord := p.Header.Order.Uint32(buf[:4])
-	if firstWord == 0xffffffff {
-		return p.readLargeTag(buf[4:])
+	firstWord := p.Header.Order.Uint32(buf[0:4])
+
+	// Check for small format: upper 16 bits contain size (1-4)
+	// Lower 16 bits contain data type
+	size := firstWord >> 16
+	if size > 0 && size <= 4 {
+		// Small format
+		dataType := firstWord & 0xFFFF
+		return &DataTag{
+			DataType: dataType,
+			Size:     size,
+			IsSmall:  true,
+		}, nil
 	}
-	return p.readSmallTag(firstWord)
-}
 
-// readSmallTag reads a small data element tag.
-func (p *Parser) readSmallTag(tagPrefix uint32) (*DataTag, error) {
+	// Regular format: entire first word is type, second word is size
+	dataType := firstWord
+	size = p.Header.Order.Uint32(buf[4:8])
 	return &DataTag{
-		DataType: tagPrefix & 0x0000ffff,
-		Size:     tagPrefix >> 16,
-		IsSmall:  true,
-	}, nil
-}
-
-// readLargeTag reads a large data element tag.
-func (p *Parser) readLargeTag(suffix []byte) (*DataTag, error) {
-	buf := make([]byte, 8)
-	if _, err := io.ReadFull(p.r, buf); err != nil {
-		return nil, err
-	}
-	p.pos += 8
-
-	return &DataTag{
-		DataType: p.Header.Order.Uint32(buf[:4]),
-		Size:     p.Header.Order.Uint32(suffix),
+		DataType: dataType,
+		Size:     size,
 		IsSmall:  false,
 	}, nil
 }
