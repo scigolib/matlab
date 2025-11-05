@@ -225,24 +225,27 @@ func main() {
 | Cell arrays          | ❌ Future    | ❌ Future    |
 | Compression          | ❌ Future    | ❌ Future    |
 
-## Known Limitations (v0.1.1-beta)
+## Known Limitations (v0.2.0-beta)
 
 ### Writer Limitations
-- **v5 format writing not yet implemented** (coming in v0.2.0)
 - No compression support yet
 - No structures/cell arrays writing yet
+- Character arrays (partial support for v5 Writer)
 
-### Reader Issues
-- Some bugs with multi-dimensional arrays (being fixed)
+### Reader Limitations
 - Limited support for structures and cell arrays
-- Multiple variables in one file may have issues
+- No compression support
 
 ### What Works Well ✅
-- All numeric types (double, single, int8-64, uint8-64)
-- Multi-dimensional arrays (write)
-- **Complex numbers** (proper MATLAB v7.3 format) ✨ FIXED in v0.1.1-beta
-- Round-trip write → read verified
-- Cross-platform (Windows, Linux, macOS)
+- ✅ **v5 Writer COMPLETE** - All numeric types, complex numbers, multi-dimensional arrays ✨ NEW in v0.2.0-beta
+- ✅ **v7.3 Writer COMPLETE** - Full HDF5-based writing
+- ✅ **Parser bugs FIXED** - Multi-dimensional arrays, multiple variables ✨ FIXED in v0.2.0-beta
+- ✅ All numeric types (double, single, int8-64, uint8-64)
+- ✅ Multi-dimensional arrays (read & write)
+- ✅ Complex numbers (proper MATLAB format for both v5 and v7.3)
+- ✅ Round-trip verified (v5 write → read, v7.3 write → read)
+- ✅ Cross-platform (Windows, Linux, macOS)
+- ✅ Both endianness (MI/IM for v5)
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed limitations and planned fixes.
 
@@ -381,9 +384,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Status**: Beta - Read and Write support for v7.3 format (proper complex numbers!)
-**Version**: v0.1.1-beta
-**Last Updated**: 2025-11-03
+**Status**: Beta - Read and Write support for both v5 and v7.3 formats!
+**Version**: v0.2.0-beta
+**Last Updated**: 2025-11-06
 
 **Ready for**: Testing, feedback, and real-world usage
 **Not ready for**: Production use (API may change)
