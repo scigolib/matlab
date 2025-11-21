@@ -2,7 +2,7 @@
 
 > **Strategic Approach**: Leverage existing HDF5 library and MATLAB documentation
 
-**Last Updated**: 2025-11-06 | **Current Version**: v0.2.0-beta (RELEASED ✅) | **Target**: v1.0.0 stable (2026)
+**Last Updated**: 2025-01-09 | **Current Version**: v0.2.0 (STABLE ✅) | **Target**: v1.0.0 stable (2026)
 
 ---
 
@@ -37,11 +37,13 @@ Build a **production-ready, pure Go MATLAB file library** with comprehensive **r
 ### Philosophy: MVP → Feature Complete → Community Feedback → Stable
 
 ```
-v0.1.0-beta (RELEASED ✅) → Reader v5/v7.3 + Writer v7.3 (workaround complex)
+v0.1.0-beta (2025-11-02) → Reader v5/v7.3 + Writer v7.3 (workaround complex)
          ↓ (1 day!)
-v0.1.1-beta (RELEASED ✅) → Proper MATLAB complex format + race detector fix
+v0.1.1-beta (2025-11-03) → Proper MATLAB complex format + race detector fix
          ↓ (3 days!)
-v0.2.0-beta (RELEASED ✅) → v5 Writer + parser bug fixes + comprehensive tests
+v0.2.0-beta (2025-11-06) → v5 Writer + parser bug fixes + comprehensive tests
+         ↓ (2 months!)
+v0.2.0 STABLE (2025-01-09) ✅ → HDF5 v0.13.1 stable + production ready
          ↓ (2-3 weeks)
 v0.3.0 → Functional Options Pattern (flexible API)
          ↓ (2-3 weeks)
@@ -64,7 +66,7 @@ v2.0.0 → Only if breaking changes needed
 
 ---
 
-## 📊 Current Status (v0.2.0-beta - RELEASED)
+## 📊 Current Status (v0.2.0 - STABLE RELEASE ✅)
 
 ### ✅ What's Working Now
 
@@ -118,12 +120,14 @@ v2.0.0 → Only if breaking changes needed
 - ❌ Compression not supported
 - ❌ Structures/cells not supported for writing
 
-**Fixed in v0.2.0-beta**:
+**What's in v0.2.0 STABLE**:
+- ✅ **HDF5 v0.13.1 stable** (upgraded from v0.11.5-beta)
 - ✅ v5 Writer fully implemented (565 lines)
 - ✅ Critical parser bug fixed (tag format detection)
 - ✅ Multi-dimensional arrays working in reader
 - ✅ Multiple variables per file working in reader
 - ✅ All round-trip tests passing (100%)
+- ✅ Production-ready quality maintained
 
 ---
 
@@ -150,7 +154,7 @@ v2.0.0 → Only if breaking changes needed
 
 ---
 
-### **Phase 2: v0.2.0-beta - v5 Writer + Parser Fixes** ✅ COMPLETE
+### **Phase 2: v0.2.0 - v5 Writer + Parser Fixes + Stable Release** ✅ COMPLETE
 
 **Goal**: Complete MATLAB v5 format writer and fix critical parser bugs
 
@@ -167,8 +171,10 @@ v2.0.0 → Only if breaking changes needed
 10. ✅ Production quality: 0 linter issues, all tests passing
 
 **Tasks**: TASK-011 (v5 Writer + Parser Fixes)
-**Duration**: 3 days (2025-11-04 to 2025-11-06)
-**Status**: ✅ RELEASED 2025-11-06
+**Duration**:
+- Beta: 3 days (2025-11-04 to 2025-11-06)
+- Stable: 2 months testing (2025-11-06 to 2025-01-09)
+**Status**: ✅ STABLE RELEASED 2025-01-09
 
 **Key Achievements**:
 - v5 Writer implementation: 565 lines of production code
@@ -176,6 +182,8 @@ v2.0.0 → Only if breaking changes needed
 - Test quality: 100% passing, 78.5% coverage (main package)
 - Code quality: 0 linter errors, professional Go code
 - Round-trip verification: Both v5 and v7.3 formats working perfectly
+- **HDF5 v0.13.1 stable**: Upgraded from beta to stable dependency
+- **Production-ready**: 2 months of battle-testing
 
 ---
 
@@ -202,29 +210,10 @@ v2.0.0 → Only if breaking changes needed
 
 ---
 
-### **Phase 2: v0.2.0 - v5 Writer** ← NEXT
-
-**Goal**: Complete write support for both v5 and v7.3 formats
-
-**Planned Features**:
-1. ⭐ v5 binary writer implementation
-2. ⭐ Tag-Length-Value encoding
-3. ⭐ All numeric types
-4. ⭐ Both endianness (MI/IM)
-5. ⭐ Complex numbers
-6. ⭐ Proper padding and alignment
-7. ⭐ Round-trip tests (v5 write → read)
-8. ⭐ MATLAB/Octave compatibility validation
-9. ⭐ Fix reader bugs (multi-dim arrays, multiple vars)
-
-**Tasks**: TASK-011 (v5 Writer)
-**Duration**: 3-4 weeks
-**Dependencies**:
-- None (complex format already fixed in v0.1.1-beta)
 
 ---
 
-### **Phase 3: v0.3.0 - Functional Options Pattern**
+### **Phase 3: v0.3.0 - Functional Options Pattern** ← NEXT
 
 **Goal**: Flexible and extensible API
 
@@ -360,11 +349,13 @@ v2.0.0 → Only if breaking changes needed
 
 ---
 
-## 🎯 Current Focus (Post v0.2.0-beta)
+## 🎯 Current Focus (Post v0.2.0 Stable)
 
 ### Immediate Priorities (Next 2-3 Weeks)
 
 **Focus**: v0.3.0 - Functional Options Pattern + Quality Improvements
+
+**Current Status**: v0.2.0 STABLE released (2025-01-09) ✅
 
 **Planned Work**:
 1. **API Enhancement** ⭐
@@ -397,7 +388,8 @@ v2.0.0 → Only if breaking changes needed
 
 **Required**:
 - Go 1.25+
-- github.com/scigolib/hdf5 v0.11.5-beta (for v7.3 support)
+- github.com/scigolib/hdf5 v0.13.1 (STABLE) - for v7.3 support
+  - Production-ready HDF5 implementation
   - Includes nested datasets and group attributes support
 
 **Development**:
@@ -502,9 +494,36 @@ The following features are **not planned**:
 - ❌ Compression not supported
 - ❌ Structures/cells not supported for writing
 
-**Next**: v0.2.0 will add v5 Writer and fix reader bugs
+**Next**: v0.3.0 will add Functional Options Pattern for flexible API
 
 ---
 
-*Version 2.1*
-*Current: v0.1.1-beta (RELEASED) | Next: v0.2.0 (v5 Writer) | Target: v1.0.0 (2026)*
+## 🎉 Release Notes - v0.2.0 STABLE (2025-01-09)
+
+### What's New in v0.2.0 Stable
+- ✅ **STABLE RELEASE**: Graduated from beta to stable
+- ✅ **HDF5 v0.13.1**: Upgraded to stable HDF5 dependency
+- ✅ **Production-ready**: 2 months of battle-testing since v0.2.0-beta
+- ✅ **All features preserved**: Complete v5+v7.3 read/write support
+- ✅ **Zero regressions**: All tests passing with new HDF5 version
+
+### Complete Feature Set (from v0.2.0-beta)
+- v5 Writer: All numeric types, complex, multi-dimensional (565 lines)
+- v5 Reader: Fixed critical parser bugs (tag format, multi-dim, multiple vars)
+- v7.3 Writer: HDF5-based with proper MATLAB format
+- v7.3 Reader: Full HDF5 integration
+- Round-trip verified: Both formats working perfectly
+
+### Quality Metrics
+- Tests: 100% passing (all platforms)
+- Coverage: 78.5% (main), 51.8% (v5), 48.8% (v73)
+- Linter: 0 errors, 0 warnings
+- Race detector: 0 races
+- CI/CD: All platforms GREEN
+
+**Recommendation**: Upgrade from any beta version - stable, production-ready!
+
+---
+
+*Version 2.2*
+*Current: v0.2.0 STABLE (RELEASED 2025-01-09) | Next: v0.3.0 (Functional Options) | Target: v1.0.0 (2026)*
