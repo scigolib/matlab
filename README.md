@@ -225,7 +225,7 @@ func main() {
 | Cell arrays          | ❌ Future    | ❌ Future    |
 | Compression          | ❌ Future    | ❌ Future    |
 
-## Known Limitations (v0.2.0-beta)
+## Known Limitations (v0.2.0)
 
 ### Writer Limitations
 - No compression support yet
@@ -237,9 +237,9 @@ func main() {
 - No compression support
 
 ### What Works Well ✅
-- ✅ **v5 Writer COMPLETE** - All numeric types, complex numbers, multi-dimensional arrays ✨ NEW in v0.2.0-beta
+- ✅ **v5 Writer COMPLETE** - All numeric types, complex numbers, multi-dimensional arrays
 - ✅ **v7.3 Writer COMPLETE** - Full HDF5-based writing
-- ✅ **Parser bugs FIXED** - Multi-dimensional arrays, multiple variables ✨ FIXED in v0.2.0-beta
+- ✅ **Parser bugs FIXED** - Multi-dimensional arrays, multiple variables
 - ✅ All numeric types (double, single, int8-64, uint8-64)
 - ✅ Multi-dimensional arrays (read & write)
 - ✅ Complex numbers (proper MATLAB format for both v5 and v7.3)
@@ -315,7 +315,7 @@ The project includes test data in `testdata/`:
 
 ## Contributing
 
-Contributions are welcome! This is an early-stage beta project and we'd love your help.
+Contributions are welcome! This is a stable project and we'd love your help.
 
 **Before contributing**:
 1. Read [CONTRIBUTING.md](CONTRIBUTING.md) - Git workflow and development guidelines
@@ -384,12 +384,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Status**: Beta - Read and Write support for both v5 and v7.3 formats!
-**Version**: v0.2.0-beta
-**Last Updated**: 2025-11-06
+**Status**: ✅ **STABLE** - Production-ready read and write support for both v5 and v7.3 formats!
+**Version**: v0.2.0 (stable)
+**Last Updated**: 2025-01-09
 
-**Ready for**: Testing, feedback, and real-world usage
-**Not ready for**: Production use (API may change)
+**Ready for**: Production use, testing, feedback, and real-world usage
+**Stable API**: Minor API changes may occur in 0.x versions, major stability expected
 
 ---
 

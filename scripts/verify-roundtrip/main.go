@@ -167,5 +167,5 @@ func main() {
 	fmt.Println("  ✓ Reader can parse written files")
 	fmt.Println("  ✓ Data integrity preserved")
 	fmt.Println("  ✓ Variable metadata preserved")
-	fmt.Println("\n🎉 Ready to commit and release v0.2.0-beta!")
+	fmt.Println("\n🎉 Round-trip verification successful!")
 }
