@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.0] - 2025-01-09
+
+### Changed - Stable Release 🎉
+- **STABLE RELEASE**: Upgraded from beta to stable version
+- **HDF5 dependency**: Updated from v0.11.5-beta to **v0.13.1 (stable)**
+- All features from v0.2.0-beta preserved and battle-tested
+- No breaking changes or API modifications
+- Production-ready quality maintained
+
+### Quality Assurance
+- ✅ All tests passing (100%) with HDF5 v0.13.1
+- ✅ Backward compatible with v0.2.0-beta
+- ✅ Zero linter issues maintained
+- ✅ Test coverage: 78.5% (main), 51.8% (v5), 48.8% (v73)
+- ✅ Race detector: 0 races detected
+- ✅ CI/CD: All platforms GREEN
+
+### What's Included (from v0.2.0-beta)
+- ✅ v5 Writer: Complete MATLAB v5 format writer (all numeric types, complex, multi-dimensional)
+- ✅ v5 Reader: Critical parser bugs fixed (tag format, multi-dim arrays, multiple variables)
+- ✅ v7.3 Writer: HDF5-based writer with proper MATLAB format
+- ✅ v7.3 Reader: Full HDF5 integration
+- ✅ Round-trip verified: Both v5 and v7.3 formats working perfectly
+
+---
+
 ## [0.2.0-beta] - 2025-11-06
 
 ### Added - v5 Writer Support ✨

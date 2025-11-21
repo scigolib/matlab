@@ -2,7 +2,7 @@
 # Pure Go MATLAB .mat file reader
 
 PROJECT = matlab
-VERSION ?= v0.1.0-beta
+VERSION ?= v0.2.0
 
 # Default target
 .DEFAULT_GOAL := test
