@@ -587,3 +587,100 @@ func TestBothEndianness(t *testing.T) {
 func contains(s, substr string) bool {
 	return bytes.Contains([]byte(s), []byte(substr))
 }
+
+// TestValidateDimensions_Overflow tests dimension overflow detection.
+func TestValidateDimensions_Overflow(t *testing.T) {
+	tests := []struct {
+		name        string
+		dims        []int
+		expectError bool
+	}{
+		{
+			name:        "valid small dimensions",
+			dims:        []int{10, 20, 30},
+			expectError: false,
+		},
+		{
+			name:        "valid 1D large array",
+			dims:        []int{1000000},
+			expectError: false,
+		},
+		{
+			name:        "valid 2D matrix",
+			dims:        []int{1000, 1000},
+			expectError: false,
+		},
+		{
+			name:        "overflow with huge dimensions",
+			dims:        []int{math.MaxInt / 2, 3}, // (MaxInt/2) * 3 overflows
+			expectError: true,
+		},
+		{
+			name:        "overflow with many dimensions",
+			dims:        []int{2000, 2000, 2000, 2000, 2000, 2000}, // 2000^6 overflows int64
+			expectError: true,
+		},
+		{
+			name:        "negative dimension",
+			dims:        []int{10, -5, 20},
+			expectError: true,
+		},
+		{
+			name:        "zero dimension",
+			dims:        []int{10, 0, 20},
+			expectError: true,
+		},
+		{
+			name:        "empty dimensions",
+			dims:        []int{},
+			expectError: true,
+		},
+		{
+			name:        "single large valid dimension",
+			dims:        []int{math.MaxInt / 2}, // Valid, won't overflow
+			expectError: false,
+		},
+		{
+			name:        "2D that overflows",
+			dims:        []int{100000000, 100000000}, // 10^16 elements, won't overflow on 64-bit
+			expectError: false,
+		},
+		{
+			name:        "3D that overflows",
+			dims:        []int{100000, 100000, 1000}, // 10^13 elements, won't overflow
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a minimal variable with test dimensions
+			variable := &types.Variable{
+				Name:       "test",
+				Dimensions: tt.dims,
+				Data:       []float64{1.0}, // Dummy data
+				DataType:   types.Double,
+			}
+
+			// Create writer
+			buf := &bytes.Buffer{}
+			writer, err := NewWriter(buf, "Test", "MI")
+			if err != nil {
+				t.Fatalf("failed to create writer: %v", err)
+			}
+
+			// Validate
+			err = writer.validateVariable(variable)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("expected error for dimensions %v, got nil", tt.dims)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error for dimensions %v: %v", tt.dims, err)
+				}
+			}
+		})
+	}
+}

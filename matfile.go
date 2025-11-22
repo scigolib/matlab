@@ -96,3 +96,50 @@ func parseV73(r io.Reader) (*MatFile, error) {
 		Variables: variables,
 	}, nil
 }
+
+// GetVariable retrieves a variable by name.
+// Returns nil if the variable is not found.
+//
+// Example:
+//
+//	matFile, _ := matlab.Open(file)
+//	data := matFile.GetVariable("mydata")
+//	if data != nil {
+//	    fmt.Println("Found:", data.Name)
+//	}
+func (m *MatFile) GetVariable(name string) *types.Variable {
+	for _, v := range m.Variables {
+		if v.Name == name {
+			return v
+		}
+	}
+	return nil
+}
+
+// GetVariableNames returns the names of all variables in the file.
+// Useful for listing available data without accessing values.
+//
+// Example:
+//
+//	matFile, _ := matlab.Open(file)
+//	names := matFile.GetVariableNames()
+//	fmt.Println("Variables:", names) // ["x", "y", "z"]
+func (m *MatFile) GetVariableNames() []string {
+	names := make([]string, len(m.Variables))
+	for i, v := range m.Variables {
+		names[i] = v.Name
+	}
+	return names
+}
+
+// HasVariable checks if a variable with the given name exists.
+//
+// Example:
+//
+//	if matFile.HasVariable("results") {
+//	    data := matFile.GetVariable("results")
+//	    // process data
+//	}
+func (m *MatFile) HasVariable(name string) bool {
+	return m.GetVariable(name) != nil
+}

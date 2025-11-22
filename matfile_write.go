@@ -1,6 +1,7 @@
 package matlab
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"os"
@@ -40,47 +41,54 @@ type MatFileWriter struct {
 	v5file   *os.File
 }
 
-// Create creates a new MATLAB file for writing.
+// Create creates a new MATLAB file for writing with optional configuration.
 //
-// Parameters:
-//   - filename: Path to the file to create (will overwrite if exists)
-//   - version: MAT-file format version (Version5 or Version73)
+// The version parameter specifies the format: Version5 or Version73.
+// Optional parameters can be provided using functional options.
 //
-// Returns:
-//   - *MatFileWriter: Handle to the created file
-//   - error: If file creation fails or version is unsupported
+// Supported options:
+//   - WithEndianness(binary.ByteOrder) - v5 byte order (default: LittleEndian)
+//   - WithDescription(string) - v5 file description (max 116 bytes)
+//   - WithCompression(int) - compression level 0-9 (not yet implemented)
 //
-// Example:
+// Example (basic):
+//
+//	writer, err := matlab.Create("output.mat", matlab.Version5)
+//
+// Example (with options):
+//
+//	writer, err := matlab.Create("output.mat", matlab.Version5,
+//	    matlab.WithEndianness(binary.BigEndian),
+//	    matlab.WithDescription("Simulation results"))
+//
+// Example (v7.3):
 //
 //	writer, err := matlab.Create("output.mat", matlab.Version73)
-//	if err != nil {
-//	    return err
-//	}
-//	defer writer.Close()
-//
-//	err = writer.WriteVariable(&types.Variable{
-//	    Name:       "mydata",
-//	    Dimensions: []int{3},
-//	    DataType:   types.Double,
-//	    Data:       []float64{1.0, 2.0, 3.0},
-//	})
-func Create(filename string, version Version) (*MatFileWriter, error) {
+func Create(filename string, version Version, opts ...Option) (*MatFileWriter, error) {
 	if filename == "" {
 		return nil, errors.New("filename cannot be empty")
 	}
 
+	// Apply default config
+	cfg := defaultConfig()
+	applyOptions(cfg, opts)
+
+	// Create based on version
 	switch version {
 	case Version73:
-		return createV73(filename)
+		return createV73(filename, cfg)
 	case Version5:
-		return createV5(filename)
+		return createV5(filename, cfg)
 	default:
 		return nil, fmt.Errorf("unsupported MAT-file version: %d", version)
 	}
 }
 
-// createV73 creates a v7.3 format writer.
-func createV73(filename string) (*MatFileWriter, error) {
+// createV73 creates a v7.3 format writer with configuration.
+func createV73(filename string, cfg *config) (*MatFileWriter, error) {
+	// Note: v73 doesn't use endianness or description (HDF5 handles that)
+	_ = cfg // Avoid unused parameter warning
+
 	writer, err := v73.NewWriter(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create v7.3 writer: %w", err)
@@ -93,8 +101,8 @@ func createV73(filename string) (*MatFileWriter, error) {
 	}, nil
 }
 
-// createV5 creates a v5 format writer.
-func createV5(filename string) (*MatFileWriter, error) {
+// createV5 creates a v5 format writer with configuration.
+func createV5(filename string, cfg *config) (*MatFileWriter, error) {
 	// Create file
 	//nolint:gosec // G304: filename is provided by user for MAT-file creation, expected behavior
 	f, err := os.Create(filename)
@@ -102,8 +110,16 @@ func createV5(filename string) (*MatFileWriter, error) {
 		return nil, fmt.Errorf("failed to create file: %w", err)
 	}
 
-	// Create v5 writer (writes header immediately)
-	writer, err := v5.NewWriter(f, "MATLAB 5.0 MAT-file, created by scigolib/matlab", "MI")
+	// Determine endianness string
+	var endian string
+	if cfg.endianness == binary.LittleEndian {
+		endian = "MI"
+	} else {
+		endian = "IM"
+	}
+
+	// Create v5 writer (writes header immediately) with config
+	writer, err := v5.NewWriter(f, cfg.description, endian)
 	if err != nil {
 		//nolint:errcheck,gosec // G104: File cleanup after error, error logged elsewhere
 		f.Close()

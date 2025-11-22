@@ -1,6 +1,7 @@
 package v73
 
 import (
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -500,5 +501,83 @@ func TestWriteVariable_3DArray(t *testing.T) {
 	err = writer.WriteVariable(v)
 	if err != nil {
 		t.Errorf("WriteVariable() error = %v", err)
+	}
+}
+
+// TestValidateDimensions_Overflow tests dimension overflow detection.
+func TestValidateDimensions_Overflow(t *testing.T) {
+	tests := []struct {
+		name        string
+		dims        []int
+		expectError bool
+	}{
+		{
+			name:        "valid small dimensions",
+			dims:        []int{10, 20, 30},
+			expectError: false,
+		},
+		{
+			name:        "valid 1D large array",
+			dims:        []int{1000000},
+			expectError: false,
+		},
+		{
+			name:        "overflow with huge dimensions",
+			dims:        []int{math.MaxInt / 2, 3}, // (MaxInt/2) * 3 overflows
+			expectError: true,
+		},
+		{
+			name:        "overflow with many dimensions",
+			dims:        []int{2000, 2000, 2000, 2000, 2000, 2000}, // 2000^6 overflows int64
+			expectError: true,
+		},
+		{
+			name:        "negative dimension",
+			dims:        []int{10, -5, 20},
+			expectError: true,
+		},
+		{
+			name:        "zero dimension",
+			dims:        []int{10, 0, 20},
+			expectError: true,
+		},
+		{
+			name:        "empty dimensions",
+			dims:        []int{},
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a minimal variable with test dimensions
+			variable := &types.Variable{
+				Name:       "test",
+				Dimensions: tt.dims,
+				Data:       []float64{1.0}, // Dummy data
+				DataType:   types.Double,
+			}
+
+			// Create writer (temp file)
+			tmpfile := filepath.Join(t.TempDir(), "test.mat")
+			writer, err := NewWriter(tmpfile)
+			if err != nil {
+				t.Fatalf("failed to create writer: %v", err)
+			}
+			defer writer.Close()
+
+			// Validate
+			err = writer.validateVariable(variable)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("expected error for dimensions %v, got nil", tt.dims)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error for dimensions %v: %v", tt.dims, err)
+				}
+			}
+		})
 	}
 }
