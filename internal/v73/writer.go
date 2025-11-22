@@ -3,6 +3,7 @@ package v73
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/scigolib/hdf5"
 	"github.com/scigolib/matlab/types"
@@ -87,6 +88,22 @@ func (w *Writer) validateVariable(v *types.Variable) error {
 	if v.Data == nil {
 		return fmt.Errorf("variable data is required")
 	}
+
+	// Validate dimensions are positive and check for overflow
+	total := int64(1)
+	for i, d := range v.Dimensions {
+		if d <= 0 {
+			return fmt.Errorf("dimension[%d] must be positive, got %d", i, d)
+		}
+
+		// Check for overflow before multiplying
+		if d > 0 && total > math.MaxInt/int64(d) {
+			return fmt.Errorf("dimensions overflow (total elements too large): %v", v.Dimensions)
+		}
+
+		total *= int64(d)
+	}
+
 	return nil
 }
 
