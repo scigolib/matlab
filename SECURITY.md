@@ -6,6 +6,7 @@ MATLAB File Reader/Writer is currently in stable release. We provide security up
 
 | Version | Supported          |
 | ------- | ------------------ |
+| 0.3.x   | :white_check_mark: |
 | 0.2.x   | :white_check_mark: |
 | 0.1.x   | :x:                |
 | < 0.1.0 | :x:                |
@@ -50,6 +51,140 @@ We aim to:
 2. Provide an initial assessment within 1 week
 3. Work with you on a coordinated disclosure timeline
 4. Credit you in the security advisory (unless you prefer to remain anonymous)
+
+## Security Fixes in v0.3.0 (2025-11-21)
+
+Three critical security issues were identified through deep code analysis and fixed in v0.3.0:
+
+### 1. Tag Size Validation
+
+**Severity**: High
+**Type**: Memory Exhaustion / Denial of Service
+**Affected Versions**: v0.1.0-beta to v0.2.0
+**Fixed in**: v0.3.0 (2025-11-21)
+
+**Vulnerability Description**:
+No validation was performed on v5 format tag sizes read from untrusted MAT files. An attacker could craft a malicious MAT file with extremely large tag size values (e.g., 0xFFFFFFFF = 4GB+), causing the library to attempt massive memory allocations.
+
+**Attack Vector**:
+```
+Malicious v5 MAT file:
+- Tag header with size = 0xFFFFFFFF (4,294,967,295 bytes)
+- Library attempts to allocate 4GB+ buffer
+- System runs out of memory (DoS)
+- Or library crashes (availability issue)
+```
+
+**Fix Implementation**:
+```go
+// internal/v5/data_tag.go:8-11
+const maxReasonableSize = 2 * 1024 * 1024 * 1024 // 2GB limit
+
+// internal/v5/data_tag.go:53-55
+if size > maxReasonableSize {
+    return nil, fmt.Errorf("tag size too large: %d bytes (max %d)",
+        size, maxReasonableSize)
+}
+```
+
+**Impact**: Prevents memory exhaustion attacks. Returns error for tags > 2GB.
+
+**Credit**: Internal security audit (2025-11-21)
+
+---
+
+### 2. Dimension Overflow Check
+
+**Severity**: High
+**Type**: Integer Overflow / Buffer Overflow
+**Affected Versions**: v0.1.0-beta to v0.2.0
+**Fixed in**: v0.3.0 (2025-11-21)
+
+**Vulnerability Description**:
+No overflow check was performed when multiplying array dimensions to calculate total element count. An attacker could specify dimensions that overflow when multiplied, leading to incorrect buffer allocation and potential buffer overflow.
+
+**Attack Vector**:
+```
+Malicious dimensions: [0xFFFFFFFF, 0xFFFFFFFF]
+Multiplication: 0xFFFFFFFF * 0xFFFFFFFF
+Expected result: ~1.8e19 elements (overflow)
+Actual result (int64): Small positive number (wraps around)
+Result: Small buffer allocated, large data written → buffer overflow
+```
+
+**Fix Implementation**:
+```go
+// internal/v5/writer.go:124-129
+total := int64(1)
+for _, d := range dims {
+    if d > 0 && total > math.MaxInt/int64(d) {
+        return fmt.Errorf("dimensions overflow: %v", dims)
+    }
+    total *= int64(d)
+}
+
+// Same fix in internal/v73/writer.go:98-103
+```
+
+**Impact**: Prevents integer overflow in dimension calculations. Validates before allocation.
+
+**Credit**: Internal security audit (2025-11-21)
+
+---
+
+### 3. v73 Complex Number Reading
+
+**Severity**: Medium (Functionality, not security)
+**Type**: Data Corruption / Round-trip Failure
+**Affected Versions**: v0.1.0-beta to v0.2.0
+**Fixed in**: v0.3.0 (2025-11-21)
+
+**Issue Description**:
+v7.3 format complex number groups were not properly detected during reading. The `MATLAB_complex` attribute was ignored, causing complex numbers to be read incorrectly and round-trip tests to fail.
+
+**Problem**:
+```
+v7.3 file structure for complex number:
+/variable_name (Group)
+    ├── MATLAB_class attribute = "double"
+    ├── MATLAB_complex attribute = "1"
+    ├── /real (Dataset)
+    └── /imag (Dataset)
+
+Problem: MATLAB_complex attribute was not checked
+Result: Group treated as structure, not complex number
+Impact: Round-trip write → read → verify FAILED
+```
+
+**Fix Implementation**:
+```go
+// internal/v73/adapter.go:50-65
+// Check for MATLAB_complex attribute
+for _, attr := range group.Attributes() {
+    if attr.Name == "MATLAB_complex" {
+        variable, err := a.convertComplexGroup(group, name)
+        if err == nil {
+            *variables = append(*variables, variable)
+            return nil
+        }
+    }
+}
+
+// internal/v73/adapter.go:179-247
+// New function: convertComplexGroup()
+func (a *HDF5Adapter) convertComplexGroup(group *hdf5.Group, name string)
+    (*types.Variable, error) {
+    // Opens /real and /imag datasets
+    // Creates Variable with IsComplex=true
+    // Returns NumericArray{Real, Imag}
+}
+```
+
+**Impact**: Fixes round-trip for v7.3 complex numbers. Proper MATLAB compatibility.
+
+**Credit**: Round-trip testing (2025-11-21)
+
+---
 
 ## Security Considerations for MATLAB File Parsing
 
@@ -402,14 +537,32 @@ MATLAB File Reader/Writer dependencies:
 
 ## Security Disclosure History
 
-No security vulnerabilities have been reported or fixed yet (project in stable v0.2.0).
+### v0.3.0 (2025-11-21)
 
-When vulnerabilities are addressed, they will be listed here with:
-- **CVE ID** (if assigned)
-- **Affected versions**
-- **Fixed in version**
-- **Severity** (Critical/High/Medium/Low)
-- **Credit** to reporter
+**Three security issues fixed** (identified through internal audit):
+
+1. **Tag Size Validation** (High)
+   - **CVE**: Pending
+   - **Affected**: v0.1.0-beta to v0.2.0
+   - **Fixed in**: v0.3.0
+   - **Type**: Memory Exhaustion / DoS
+   - **Credit**: Internal security audit
+
+2. **Dimension Overflow Check** (High)
+   - **CVE**: Pending
+   - **Affected**: v0.1.0-beta to v0.2.0
+   - **Fixed in**: v0.3.0
+   - **Type**: Integer Overflow / Buffer Overflow
+   - **Credit**: Internal security audit
+
+3. **v73 Complex Reading** (Medium)
+   - **CVE**: N/A (functionality bug)
+   - **Affected**: v0.1.0-beta to v0.2.0
+   - **Fixed in**: v0.3.0
+   - **Type**: Data Corruption / Round-trip Failure
+   - **Credit**: Round-trip testing
+
+**Recommendation**: All users should upgrade to v0.3.0 immediately.
 
 ## Security Contact
 
