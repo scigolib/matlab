@@ -36,8 +36,10 @@ A modern, pure Go library for **reading and writing** MATLAB `.mat` files withou
 - Complex numbers
 - Multi-dimensional arrays
 - Character arrays
-- Structures (partial support)
-- Cell arrays (partial support)
+- Structures
+- Cell arrays
+- Sparse matrices
+- Compressed data (reading)
 
 ## Installation
 
@@ -204,37 +206,36 @@ func main() {
 | Numeric arrays       | ✅           | ✅           |
 | Complex numbers      | ✅           | ✅           |
 | Character arrays     | ✅           | ✅           |
-| Multi-dimensional    | ⚠️ Partial   | ✅           |
-| Structures           | ⚠️ Partial   | ⚠️ Partial   |
-| Cell arrays          | ⚠️ Partial   | ⚠️ Partial   |
-| Sparse matrices      | ❌           | ⚠️ Limited   |
-| Compression          | ❌           | ❌           |
-| Function handles     | ❌           | ❌           |
-| Objects              | ❌           | ❌           |
+| Multi-dimensional    | ✅           | ✅           |
+| Structures           | ✅           | ✅           |
+| Cell arrays          | ✅           | ✅           |
+| Sparse matrices      | ✅           | ✅           |
+| Compression          | ✅           | ✅           |
+| Function handles     | ❌ Out of scope | ❌ Out of scope |
+| Objects              | ❌ Out of scope | ❌ Out of scope |
 
-### Writer Support (v0.2.0)
+### Writer Support
 
 | Feature              | v5 (v5-v7.2) | v7.3+ (HDF5) |
 |----------------------|--------------|--------------|
 | Numeric arrays       | ✅           | ✅           |
 | Complex numbers      | ✅           | ✅           |
-| Character arrays     | ⚠️ Partial   | ✅           |
+| Character arrays     | ✅           | ✅           |
 | Multi-dimensional    | ✅           | ✅           |
 | Both endianness      | ✅ MI/IM     | N/A          |
-| Structures           | ❌ Future    | ❌ Future    |
-| Cell arrays          | ❌ Future    | ❌ Future    |
-| Compression          | ❌ Future    | ❌ Future    |
+| Structures           | 📅 v0.5.0+   | 📅 v0.5.0+   |
+| Cell arrays          | 📅 v0.5.0+   | 📅 v0.5.0+   |
+| Compression          | 📅 v0.5.0+   | 📅 v0.5.0+   |
 
-## Known Limitations (v0.2.0)
+## Known Limitations
 
 ### Writer Limitations
-- No compression support yet
-- No structures/cell arrays writing yet
-- Character arrays (partial support for v5 Writer)
+- No compression support (planned for v0.5.0+)
+- No structures/cell arrays writing (planned for v0.5.0+)
 
 ### Reader Limitations
-- Limited support for structures and cell arrays
-- No compression support
+- Function handles not supported (MATLAB-specific, cannot be serialized)
+- Objects not supported (language-specific)
 
 ### What Works Well ✅
 - ✅ **v5 Writer COMPLETE** - All numeric types, complex numbers, multi-dimensional arrays
@@ -331,10 +332,10 @@ Contributions are welcome! This is a stable project and we'd love your help.
 - 🧪 Test with real MATLAB files and report compatibility
 
 **Priority Areas**:
-- Implement v5 writer (TASK-011)
-- Fix reader bugs (multi-dimensional arrays, multiple variables)
-- Test MATLAB/Octave compatibility
-- Improve test coverage (target: 80%+)
+- Test MATLAB/Octave compatibility with real-world files
+- Add compression support for v5/v7.3 writers
+- Implement structures and cell arrays writing
+- Improve test coverage (current: 85.4%, target: 90%+)
 
 ---
 
@@ -345,7 +346,7 @@ Contributions are welcome! This is a stable project and we'd love your help.
 | Pure Go | ✅ Yes | ❌ CGo required | ✅ Yes |
 | v5-v7.2 Read | ✅ Yes | ❌ Limited | ⚠️ Partial |
 | v7.3+ Read | ✅ Yes | ❌ No | ❌ No |
-| **Write Support** | ✅ **v7.3 Yes** | ❌ No | ❌ No |
+| **Write Support** | ✅ **v5 + v7.3 Yes** | ❌ No | ❌ No |
 | Complex Numbers | ✅ Yes | ⚠️ Limited | ❌ No |
 | Maintained | ✅ Active | ❌ Inactive | ❌ Inactive |
 | Cross-platform | ✅ Yes | ⚠️ Platform-specific | ✅ Yes |
@@ -385,8 +386,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **Status**: ✅ **STABLE** - Production-ready read and write support for both v5 and v7.3 formats!
-**Version**: v0.2.0 (stable)
-**Last Updated**: 2025-01-09
+**Last Updated**: 2025-11-21
 
 **Ready for**: Production use, testing, feedback, and real-world usage
 **Stable API**: Minor API changes may occur in 0.x versions, major stability expected
