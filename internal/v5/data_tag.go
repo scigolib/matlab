@@ -12,9 +12,10 @@ const maxReasonableSize = 2 * 1024 * 1024 * 1024 // 2GB
 
 // DataTag represents a data element tag.
 type DataTag struct {
-	DataType uint32 // Data type identifier
-	Size     uint32 // Data size in bytes
-	IsSmall  bool   // True for small data elements
+	DataType  uint32 // Data type identifier
+	Size      uint32 // Data size in bytes
+	IsSmall   bool   // True for small data elements
+	SmallData []byte // For small format: data bytes (up to 4 bytes)
 }
 
 // readTag reads a data tag from the stream.
@@ -36,12 +37,16 @@ func (p *Parser) readTag() (*DataTag, error) {
 	// Lower 16 bits contain data type
 	size := firstWord >> 16
 	if size > 0 && size <= 4 {
-		// Small format
+		// Small format: data is packed in bytes 4-7 of the 8-byte tag
 		dataType := firstWord & 0xFFFF
+		// Copy the small data from bytes 4 to 4+size
+		smallData := make([]byte, size)
+		copy(smallData, buf[4:4+size])
 		return &DataTag{
-			DataType: dataType,
-			Size:     size,
-			IsSmall:  true,
+			DataType:  dataType,
+			Size:      size,
+			IsSmall:   true,
+			SmallData: smallData,
 		}, nil
 	}
 

@@ -47,6 +47,8 @@ func (p *Parser) parseHeader() error {
 }
 
 // Parse reads the entire MAT-file.
+//
+//nolint:gocognit // Parser complexity is acceptable for handling multiple element types.
 func (p *Parser) Parse() (*Mat5File, error) {
 	file := &Mat5File{
 		Header: p.Header,
@@ -69,7 +71,37 @@ func (p *Parser) Parse() (*Mat5File, error) {
 			}
 			file.Variables = append(file.Variables, variable)
 		case miCOMPRESSED:
-			return nil, errors.New("compressed data not yet supported")
+			// Decompress the data
+			decompressed, err := decompress(p.r, tag.Size)
+			if err != nil {
+				return nil, err
+			}
+			p.pos += int64(tag.Size)
+
+			// Note: Compressed elements do NOT have padding after the data.
+			// The next element starts immediately after the compressed bytes.
+
+			// Parse the decompressed content (should contain a miMATRIX element)
+			sub := &Parser{
+				r:      bytes.NewReader(decompressed),
+				Header: p.Header,
+				pos:    0,
+			}
+
+			// Read the tag from decompressed data
+			subTag, err := sub.readTag()
+			if err != nil {
+				return nil, err
+			}
+
+			// The decompressed data should contain a matrix
+			if subTag.DataType == miMATRIX {
+				variable, err := sub.parseMatrix(subTag)
+				if err != nil {
+					return nil, err
+				}
+				file.Variables = append(file.Variables, variable)
+			}
 		default:
 			p.skipData(tag)
 		}
@@ -190,19 +222,23 @@ func (p *Parser) parseMatrixContent() (*types.Variable, error) {
 
 // readData reads data for a given tag.
 func (p *Parser) readData(tag *DataTag) ([]byte, error) {
+	// For small format, data is already captured in the tag
+	if tag.IsSmall {
+		return tag.SmallData, nil
+	}
+
+	// Regular format: read data from stream
 	data := make([]byte, tag.Size)
 	if _, err := io.ReadFull(p.r, data); err != nil {
 		return nil, err
 	}
 	p.pos += int64(tag.Size)
 
-	// Skip padding for large elements
-	if !tag.IsSmall {
-		padding := (8 - tag.Size%8) % 8
-		if padding > 0 {
-			_, _ = io.CopyN(io.Discard, p.r, int64(padding))
-			p.pos += int64(padding)
-		}
+	// Skip padding to 8-byte boundary
+	padding := (8 - tag.Size%8) % 8
+	if padding > 0 {
+		_, _ = io.CopyN(io.Discard, p.r, int64(padding))
+		p.pos += int64(padding)
 	}
 
 	return data, nil
@@ -210,14 +246,18 @@ func (p *Parser) readData(tag *DataTag) ([]byte, error) {
 
 // skipData skips over data for a given tag.
 func (p *Parser) skipData(tag *DataTag) {
+	// For small format, data was already read with the tag - nothing to skip
+	if tag.IsSmall {
+		return
+	}
+
+	// Regular format: skip data and padding
 	_, _ = io.CopyN(io.Discard, p.r, int64(tag.Size))
 	p.pos += int64(tag.Size)
 
-	if !tag.IsSmall {
-		padding := (8 - tag.Size%8) % 8
-		if padding > 0 {
-			_, _ = io.CopyN(io.Discard, p.r, int64(padding))
-			p.pos += int64(padding)
-		}
+	padding := (8 - tag.Size%8) % 8
+	if padding > 0 {
+		_, _ = io.CopyN(io.Discard, p.r, int64(padding))
+		p.pos += int64(padding)
 	}
 }

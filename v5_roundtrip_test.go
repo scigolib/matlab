@@ -14,7 +14,7 @@ import (
 func TestRoundTrip_V5_SimpleDouble(t *testing.T) {
 	// Write
 	var buf bytes.Buffer
-	writer, err := v5.NewWriter(&buf, "Test roundtrip", "MI")
+	writer, err := v5.NewWriter(&buf, "Test roundtrip", "IM") // "IM" = little-endian
 	if err != nil {
 		t.Fatalf("NewWriter() error = %v", err)
 	}
@@ -73,7 +73,7 @@ func TestRoundTrip_V5_SimpleDouble(t *testing.T) {
 // TestRoundTrip_V5_Int32 tests int32 arrays.
 func TestRoundTrip_V5_Int32(t *testing.T) {
 	var buf bytes.Buffer
-	writer, err := v5.NewWriter(&buf, "Test", "MI")
+	writer, err := v5.NewWriter(&buf, "Test", "IM") // "IM" = little-endian
 	if err != nil {
 		t.Fatalf("NewWriter() error = %v", err)
 	}
@@ -119,7 +119,7 @@ func TestRoundTrip_V5_Int32(t *testing.T) {
 // TestRoundTrip_V5_Complex tests complex numbers.
 func TestRoundTrip_V5_Complex(t *testing.T) {
 	var buf bytes.Buffer
-	writer, err := v5.NewWriter(&buf, "Test", "MI")
+	writer, err := v5.NewWriter(&buf, "Test", "IM") // "IM" = little-endian
 	if err != nil {
 		t.Fatalf("NewWriter() error = %v", err)
 	}
@@ -188,7 +188,7 @@ func TestRoundTrip_V5_Complex(t *testing.T) {
 // TestRoundTrip_V5_Matrix2x3 tests 2D matrix.
 func TestRoundTrip_V5_Matrix2x3(t *testing.T) {
 	var buf bytes.Buffer
-	writer, err := v5.NewWriter(&buf, "Test", "MI")
+	writer, err := v5.NewWriter(&buf, "Test", "IM") // "IM" = little-endian
 	if err != nil {
 		t.Fatalf("NewWriter() error = %v", err)
 	}
@@ -238,7 +238,7 @@ func TestRoundTrip_V5_Matrix2x3(t *testing.T) {
 // TestRoundTrip_V5_BigEndian tests big-endian format.
 func TestRoundTrip_V5_BigEndian(t *testing.T) {
 	var buf bytes.Buffer
-	writer, err := v5.NewWriter(&buf, "Test", "IM") // Big-endian
+	writer, err := v5.NewWriter(&buf, "Test", "MI") // "MI" = big-endian
 	if err != nil {
 		t.Fatalf("NewWriter() error = %v", err)
 	}
@@ -268,8 +268,8 @@ func TestRoundTrip_V5_BigEndian(t *testing.T) {
 	}
 
 	// Verify endian indicator
-	if file.Header.EndianIndicator != "IM" {
-		t.Errorf("EndianIndicator = %q, want %q", file.Header.EndianIndicator, "IM")
+	if file.Header.EndianIndicator != "MI" {
+		t.Errorf("EndianIndicator = %q, want %q", file.Header.EndianIndicator, "MI")
 	}
 
 	v := file.Variables[0]
@@ -359,7 +359,7 @@ func TestRoundTrip_V5_PublicAPI(t *testing.T) {
 // TestRoundTrip_V5_MultipleVariables tests writing multiple variables.
 func TestRoundTrip_V5_MultipleVariables(t *testing.T) {
 	var buf bytes.Buffer
-	writer, err := v5.NewWriter(&buf, "Test", "MI")
+	writer, err := v5.NewWriter(&buf, "Test", "IM") // "IM" = little-endian
 	if err != nil {
 		t.Fatalf("NewWriter() error = %v", err)
 	}

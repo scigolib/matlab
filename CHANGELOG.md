@@ -1,6 +1,36 @@
+## [0.3.1] - 2025-11-25
+
+### Fixed - Critical Bug Fixes (Hotfix)
+
+**Bug Fix #1: Compressed Data Support** (Critical):
+- **Issue**: Files with zlib-compressed data (miCOMPRESSED) returned 0 variables
+- **Impact**: Most real-world MATLAB files use compression - they were unreadable
+- **Fix**: Implemented full zlib decompression in `internal/v5/compressed.go`
+- **Security**: Added compression bomb protection (100MB limit, 1000:1 ratio max)
+
+**Bug Fix #2: Endianness Interpretation** (Critical):
+- **Issue**: "MI"/"IM" endian indicators were interpreted incorrectly
+- **Impact**: Wrong byte order caused garbage data or parse failures
+- **Fix**: Corrected interpretation in `internal/v5/header.go` and `writer.go`
+- **Note**: "IM" = little-endian, "MI" = big-endian (matches MATLAB spec)
+
+**Bug Fix #3: Small Format Tag Data** (Critical):
+- **Issue**: Small format tags (1-4 bytes) lost their embedded data
+- **Impact**: Variable names and small arrays were corrupted
+- **Fix**: Added `SmallData` field to `DataTag` struct in `internal/v5/data_tag.go`
+
+### Technical Details
+
+- Files affected: `header.go`, `writer.go`, `parser.go`, `data_tag.go`, `compressed.go`
+- All 298+ existing tests pass
+- Added test files: `inner_outer_tbl_param.mat` (12 vars), `energy_cascade_signals.mat` (34 vars)
+- Verified with real scientific data files from SciPy project
+
+---
+
 ## [0.3.0] - 2025-11-21
 
-### Added - Production Quality Release 🎉
+### Added - Production Quality Release
 
 **Functional Options Pattern**:
 - `WithEndianness(binary.ByteOrder)` - Set byte order for v5 files (little/big endian)
