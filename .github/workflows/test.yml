@@ -9,6 +9,7 @@ name: Tests
 # Branch Strategy (Git Flow):
 # - feature/** branches: Development work
 # - release/** branches: Pre-release testing (test here BEFORE merging to main)
+# - hotfix/** branches: Critical bug fixes
 # - develop branch: Integration branch
 # - main branch: Production-ready code only (protected)
 # - Pull requests: Must pass all tests before merge
@@ -20,6 +21,7 @@ on:
       - develop
       - 'feature/**'
       - 'release/**'
+      - 'hotfix/**'
   pull_request:
     branches:
       - main
