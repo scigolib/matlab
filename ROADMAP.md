@@ -2,7 +2,7 @@
 
 > **Strategic Approach**: Leverage existing HDF5 library and MATLAB documentation
 
-**Last Updated**: 2025-11-21 | **Current Version**: v0.3.0 (STABLE ✅) | **Target**: v1.0.0 stable (2026)
+**Last Updated**: 2025-11-25 | **Current Version**: v0.3.1 (HOTFIX ✅) | **Target**: v1.0.0 stable (2026)
 
 ---
 

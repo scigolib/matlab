@@ -22,10 +22,14 @@ func parseHeader(data []byte) (*Header, error) {
 	}
 
 	// Determine byte order
+	// The endian indicator is the 16-bit value 0x4D49 ("MI") written to bytes 126-127.
+	// On little-endian systems, this is stored as [0x49, 0x4D] which reads as "IM".
+	// On big-endian systems, this is stored as [0x4D, 0x49] which reads as "MI".
+	// So: "IM" → little-endian, "MI" → big-endian
 	switch hdr.EndianIndicator {
-	case "MI":
-		hdr.Order = binary.LittleEndian
 	case "IM":
+		hdr.Order = binary.LittleEndian
+	case "MI":
 		hdr.Order = binary.BigEndian
 	default:
 		return nil, errors.New("invalid endian indicator")

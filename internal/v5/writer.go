@@ -16,8 +16,8 @@ import (
 // header followed by data elements in Tag-Length-Value (TLV) format.
 //
 // All data elements are aligned to 8-byte boundaries as per the MAT-File
-// Format v5 specification. The writer supports both little-endian ("MI")
-// and big-endian ("IM") byte ordering.
+// Format v5 specification. The writer supports both little-endian ("IM")
+// and big-endian ("MI") byte ordering.
 type Writer struct {
 	w      io.Writer
 	header *Header
@@ -32,7 +32,7 @@ type Writer struct {
 // Parameters:
 //   - w: io.Writer to write to (typically a file opened with os.Create)
 //   - description: Optional description text (max 116 bytes, truncated if longer)
-//   - endian: Byte order - "MI" for little-endian or "IM" for big-endian
+//   - endian: Byte order - "IM" for little-endian or "MI" for big-endian
 //
 // Returns:
 //   - *Writer: Configured writer with header already written
@@ -42,17 +42,19 @@ type Writer struct {
 //
 //	f, _ := os.Create("output.mat")
 //	defer f.Close()
-//	writer, err := NewWriter(f, "Created by scigolib/matlab", "MI")
+//	writer, err := NewWriter(f, "Created by scigolib/matlab", "IM")
 func NewWriter(w io.Writer, description, endian string) (*Writer, error) {
 	// Validate endian indicator
+	// "IM" = little-endian, "MI" = big-endian
+	// (The 16-bit value 0x4D49 "MI" is stored as [0x49, 0x4D] "IM" on little-endian systems)
 	var order binary.ByteOrder
 	switch endian {
-	case "MI":
-		order = binary.LittleEndian
 	case "IM":
+		order = binary.LittleEndian
+	case "MI":
 		order = binary.BigEndian
 	default:
-		return nil, fmt.Errorf("invalid endian indicator: %q (must be MI or IM)", endian)
+		return nil, fmt.Errorf("invalid endian indicator: %q (must be IM or MI)", endian)
 	}
 
 	writer := &Writer{

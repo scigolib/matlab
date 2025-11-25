@@ -10,6 +10,7 @@ import (
 )
 
 // TestNewWriter tests writer creation with both endianness.
+// Note: "IM" = little-endian, "MI" = big-endian.
 func TestNewWriter(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -20,13 +21,13 @@ func TestNewWriter(t *testing.T) {
 		{
 			name:        "little endian",
 			description: "Test file little endian",
-			endian:      "MI",
+			endian:      "IM",
 			wantErr:     false,
 		},
 		{
 			name:        "big endian",
 			description: "Test file big endian",
-			endian:      "IM",
+			endian:      "MI",
 			wantErr:     false,
 		},
 		{
@@ -38,13 +39,13 @@ func TestNewWriter(t *testing.T) {
 		{
 			name:        "empty description",
 			description: "",
-			endian:      "MI",
+			endian:      "IM",
 			wantErr:     false,
 		},
 		{
 			name:        "long description",
 			description: string(make([]byte, 200)), // 200 bytes, should truncate to 116
-			endian:      "MI",
+			endian:      "IM",
 			wantErr:     false,
 		},
 	}
@@ -78,6 +79,7 @@ func TestNewWriter(t *testing.T) {
 }
 
 // TestWriteHeader tests header writing in detail.
+// Note: "IM" = little-endian, "MI" = big-endian.
 //
 //nolint:gocognit // Table-driven test with comprehensive header validation
 func TestWriteHeader(t *testing.T) {
@@ -90,13 +92,13 @@ func TestWriteHeader(t *testing.T) {
 		{
 			name:        "little endian header",
 			description: "Test MAT-file",
-			endian:      "MI",
+			endian:      "IM",
 			wantVersion: 0x0100,
 		},
 		{
 			name:        "big endian header",
 			description: "Test MAT-file",
-			endian:      "IM",
+			endian:      "MI",
 			wantVersion: 0x0100,
 		},
 	}
@@ -135,8 +137,9 @@ func TestWriteHeader(t *testing.T) {
 			}
 
 			// Verify version (bytes 124-125)
+			// "IM" = little-endian, "MI" = big-endian
 			var order binary.ByteOrder
-			if tt.endian == "MI" {
+			if tt.endian == "IM" {
 				order = binary.LittleEndian
 			} else {
 				order = binary.BigEndian
@@ -152,7 +155,7 @@ func TestWriteHeader(t *testing.T) {
 // TestEncodeFloat64Array tests float64 array encoding.
 func TestEncodeFloat64Array(t *testing.T) {
 	var buf bytes.Buffer
-	w, err := NewWriter(&buf, "Test", "MI")
+	w, err := NewWriter(&buf, "Test", "IM") // "IM" = little-endian
 	if err != nil {
 		t.Fatalf("NewWriter() error = %v", err)
 	}
@@ -215,7 +218,7 @@ func TestEncodeFloat64Array(t *testing.T) {
 // TestEncodeFloat32Array tests float32 array encoding.
 func TestEncodeFloat32Array(t *testing.T) {
 	var buf bytes.Buffer
-	w, err := NewWriter(&buf, "Test", "MI")
+	w, err := NewWriter(&buf, "Test", "IM") // "IM" = little-endian
 	if err != nil {
 		t.Fatalf("NewWriter() error = %v", err)
 	}
@@ -241,7 +244,7 @@ func TestEncodeFloat32Array(t *testing.T) {
 // TestEncodeInt32Array tests int32 array encoding.
 func TestEncodeInt32Array(t *testing.T) {
 	var buf bytes.Buffer
-	w, err := NewWriter(&buf, "Test", "MI")
+	w, err := NewWriter(&buf, "Test", "IM") // "IM" = little-endian
 	if err != nil {
 		t.Fatalf("NewWriter() error = %v", err)
 	}
@@ -290,7 +293,7 @@ func TestEncodeInt32Array(t *testing.T) {
 //nolint:gocognit,nestif // Table-driven test with format-specific validation
 func TestWrapInTag(t *testing.T) {
 	var buf bytes.Buffer
-	w, err := NewWriter(&buf, "Test", "MI")
+	w, err := NewWriter(&buf, "Test", "IM") // "IM" = little-endian
 	if err != nil {
 		t.Fatalf("NewWriter() error = %v", err)
 	}
@@ -519,7 +522,7 @@ func TestWriteVariable(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			w, err := NewWriter(&buf, "Test", "MI")
+			w, err := NewWriter(&buf, "Test", "IM") // "IM" = little-endian
 			if err != nil {
 				t.Fatalf("NewWriter() error = %v", err)
 			}
@@ -664,7 +667,7 @@ func TestValidateDimensions_Overflow(t *testing.T) {
 
 			// Create writer
 			buf := &bytes.Buffer{}
-			writer, err := NewWriter(buf, "Test", "MI")
+			writer, err := NewWriter(buf, "Test", "IM") // "IM" = little-endian
 			if err != nil {
 				t.Fatalf("failed to create writer: %v", err)
 			}

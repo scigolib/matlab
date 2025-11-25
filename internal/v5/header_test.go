@@ -6,6 +6,11 @@ import (
 )
 
 func TestParseHeader(t *testing.T) {
+	// Note: Endian indicator interpretation:
+	// - "IM" = file created on little-endian system → use LittleEndian
+	// - "MI" = file created on big-endian system → use BigEndian
+	// This is because the 16-bit value 0x4D49 ("MI") is stored as [0x49, 0x4D]
+	// on little-endian systems, which reads as "IM".
 	tests := []struct {
 		name        string
 		header      []byte
@@ -17,46 +22,46 @@ func TestParseHeader(t *testing.T) {
 	}{
 		{
 			name:        "valid little endian v5",
-			header:      makeHeader("MATLAB 5.0 MAT-file", 0x0100, "MI"),
+			header:      makeHeader("MATLAB 5.0 MAT-file", 0x0100, "IM"),
 			wantDesc:    "MATLAB 5.0 MAT-file",
 			wantVersion: 0x0100,
-			wantEndian:  "MI",
+			wantEndian:  "IM",
 			wantOrder:   binary.LittleEndian,
 			wantErr:     false,
 		},
 		{
 			name:        "valid big endian v5",
-			header:      makeHeader("MATLAB 5.0 MAT-file", 0x0100, "IM"),
+			header:      makeHeader("MATLAB 5.0 MAT-file", 0x0100, "MI"),
 			wantDesc:    "MATLAB 5.0 MAT-file",
 			wantVersion: 0x0100,
-			wantEndian:  "IM",
+			wantEndian:  "MI",
 			wantOrder:   binary.BigEndian,
 			wantErr:     false,
 		},
 		{
 			name:        "description with trailing nulls",
-			header:      makeHeader("Test file\x00\x00\x00", 0x0100, "MI"),
+			header:      makeHeader("Test file\x00\x00\x00", 0x0100, "IM"),
 			wantDesc:    "Test file",
 			wantVersion: 0x0100,
-			wantEndian:  "MI",
+			wantEndian:  "IM",
 			wantOrder:   binary.LittleEndian,
 			wantErr:     false,
 		},
 		{
 			name:        "empty description",
-			header:      makeHeader("", 0x0100, "MI"),
+			header:      makeHeader("", 0x0100, "IM"),
 			wantDesc:    "",
 			wantVersion: 0x0100,
-			wantEndian:  "MI",
+			wantEndian:  "IM",
 			wantOrder:   binary.LittleEndian,
 			wantErr:     false,
 		},
 		{
 			name:        "v7.2 format",
-			header:      makeHeader("MATLAB 7.0 MAT-file", 0x0100, "MI"),
+			header:      makeHeader("MATLAB 7.0 MAT-file", 0x0100, "IM"),
 			wantDesc:    "MATLAB 7.0 MAT-file",
 			wantVersion: 0x0100,
-			wantEndian:  "MI",
+			wantEndian:  "IM",
 			wantOrder:   binary.LittleEndian,
 			wantErr:     false,
 		},
@@ -107,6 +112,7 @@ func TestParseHeader(t *testing.T) {
 // TestParseHeaderByteOrderVerification verifies that byte order is correctly detected
 // and used for version number parsing.
 func TestParseHeaderByteOrderVerification(t *testing.T) {
+	// Note: "IM" = little-endian, "MI" = big-endian
 	tests := []struct {
 		name        string
 		endian      string
@@ -115,19 +121,19 @@ func TestParseHeaderByteOrderVerification(t *testing.T) {
 	}{
 		{
 			name:        "little endian version parsing",
-			endian:      "MI",
-			version:     0x0100,
-			wantVersion: 0x0100,
-		},
-		{
-			name:        "big endian version parsing",
 			endian:      "IM",
 			version:     0x0100,
 			wantVersion: 0x0100,
 		},
 		{
-			name:        "little endian different version",
+			name:        "big endian version parsing",
 			endian:      "MI",
+			version:     0x0100,
+			wantVersion: 0x0100,
+		},
+		{
+			name:        "little endian different version",
+			endian:      "IM",
 			version:     0x0200,
 			wantVersion: 0x0200,
 		},
@@ -146,11 +152,12 @@ func TestParseHeaderByteOrderVerification(t *testing.T) {
 			}
 
 			// Verify byte order matches endian indicator
-			if tt.endian == "MI" && got.Order != binary.LittleEndian {
-				t.Error("Expected LittleEndian for 'MI' indicator")
+			// "IM" = little-endian, "MI" = big-endian
+			if tt.endian == "IM" && got.Order != binary.LittleEndian {
+				t.Error("Expected LittleEndian for 'IM' indicator")
 			}
-			if tt.endian == "IM" && got.Order != binary.BigEndian {
-				t.Error("Expected BigEndian for 'IM' indicator")
+			if tt.endian == "MI" && got.Order != binary.BigEndian {
+				t.Error("Expected BigEndian for 'MI' indicator")
 			}
 		})
 	}
@@ -164,7 +171,7 @@ func TestParseHeaderLongDescription(t *testing.T) {
 		longDesc = longDesc[:i] + "A" + longDesc[i+1:]
 	}
 
-	header := makeHeader(longDesc, 0x0100, "MI")
+	header := makeHeader(longDesc, 0x0100, "IM") // Use "IM" for little-endian
 	got, err := parseHeader(header)
 	if err != nil {
 		t.Fatalf("parseHeader() unexpected error: %v", err)
@@ -176,6 +183,7 @@ func TestParseHeaderLongDescription(t *testing.T) {
 }
 
 // makeHeader creates a test MAT-file header (128 bytes).
+// Note: "IM" = little-endian, "MI" = big-endian.
 func makeHeader(desc string, version uint16, endian string) []byte {
 	header := make([]byte, 128)
 
@@ -183,11 +191,12 @@ func makeHeader(desc string, version uint16, endian string) []byte {
 	copy(header, desc)
 
 	// Determine byte order from endian indicator
+	// "IM" = little-endian, "MI" = big-endian
 	var order binary.ByteOrder
 	switch endian {
-	case "MI":
-		order = binary.LittleEndian
 	case "IM":
+		order = binary.LittleEndian
+	case "MI":
 		order = binary.BigEndian
 	default:
 		// For invalid endian, use little endian but write invalid indicator
@@ -205,7 +214,7 @@ func makeHeader(desc string, version uint16, endian string) []byte {
 
 // BenchmarkParseHeader benchmarks header parsing performance.
 func BenchmarkParseHeader(b *testing.B) {
-	header := makeHeader("MATLAB 5.0 MAT-file", 0x0100, "MI")
+	header := makeHeader("MATLAB 5.0 MAT-file", 0x0100, "IM") // Use "IM" for little-endian
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
