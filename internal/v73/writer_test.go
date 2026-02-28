@@ -504,6 +504,265 @@ func TestWriteVariable_3DArray(t *testing.T) {
 	}
 }
 
+// TestDataTypeToHDF5_Unsupported tests that unsupported types return an error.
+func TestDataTypeToHDF5_Unsupported(t *testing.T) {
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "test.mat")
+
+	writer, err := NewWriter(tmpFile)
+	if err != nil {
+		t.Fatalf("Setup failed: %v", err)
+	}
+	defer writer.Close()
+
+	unsupported := []struct {
+		name     string
+		dataType types.DataType
+	}{
+		{"Unknown", types.Unknown},
+		{"Char", types.Char},
+		{"Struct", types.Struct},
+		{"CellArray", types.CellArray},
+		{"Object", types.Object},
+	}
+
+	for _, tt := range unsupported {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := writer.dataTypeToHDF5(tt.dataType)
+			if err == nil {
+				t.Errorf("dataTypeToHDF5(%v) expected error for unsupported type, got nil", tt.dataType)
+			}
+		})
+	}
+}
+
+// TestDataTypeToMatlabClass_Default tests the default fallback returns "double".
+func TestDataTypeToMatlabClass_Default(t *testing.T) {
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "test.mat")
+
+	writer, err := NewWriter(tmpFile)
+	if err != nil {
+		t.Fatalf("Setup failed: %v", err)
+	}
+	defer writer.Close()
+
+	// types.Unknown and other non-mapped types should fall back to "double"
+	unsupported := []struct {
+		name     string
+		dataType types.DataType
+	}{
+		{"Unknown", types.Unknown},
+		{"CellArray", types.CellArray},
+		{"Object", types.Object},
+	}
+
+	for _, tt := range unsupported {
+		t.Run(tt.name, func(t *testing.T) {
+			got := writer.dataTypeToMatlabClass(tt.dataType)
+			if got != "double" {
+				t.Errorf("dataTypeToMatlabClass(%v) = %q, want %q", tt.dataType, got, "double")
+			}
+		})
+	}
+}
+
+// TestWriteSimpleVariable_UnsupportedType tests that writing a variable with
+// an unsupported data type (e.g. Char) returns an error from dataTypeToHDF5.
+func TestWriteSimpleVariable_UnsupportedType(t *testing.T) {
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "test.mat")
+
+	writer, err := NewWriter(tmpFile)
+	if err != nil {
+		t.Fatalf("Setup failed: %v", err)
+	}
+	defer writer.Close()
+
+	v := &types.Variable{
+		Name:       "text",
+		Dimensions: []int{5},
+		DataType:   types.Char,
+		Data:       []byte("hello"),
+	}
+
+	err = writer.WriteVariable(v)
+	if err == nil {
+		t.Error("WriteVariable() expected error for unsupported Char type, got nil")
+	}
+}
+
+// TestWriteComplexVariable_AllNumericTypes tests writing complex variables for
+// each of the 10 supported numeric types.
+func TestWriteComplexVariable_AllNumericTypes(t *testing.T) {
+	tests := []struct {
+		name     string
+		dataType types.DataType
+		real     interface{}
+		imag     interface{}
+		dims     []int
+	}{
+		{
+			name:     "Double",
+			dataType: types.Double,
+			real:     []float64{1.0, 2.0},
+			imag:     []float64{3.0, 4.0},
+			dims:     []int{2},
+		},
+		{
+			name:     "Single",
+			dataType: types.Single,
+			real:     []float32{1.0, 2.0},
+			imag:     []float32{3.0, 4.0},
+			dims:     []int{2},
+		},
+		{
+			name:     "Int8",
+			dataType: types.Int8,
+			real:     []int8{1, 2},
+			imag:     []int8{3, 4},
+			dims:     []int{2},
+		},
+		{
+			name:     "Uint8",
+			dataType: types.Uint8,
+			real:     []uint8{1, 2},
+			imag:     []uint8{3, 4},
+			dims:     []int{2},
+		},
+		{
+			name:     "Int16",
+			dataType: types.Int16,
+			real:     []int16{1, 2},
+			imag:     []int16{3, 4},
+			dims:     []int{2},
+		},
+		{
+			name:     "Uint16",
+			dataType: types.Uint16,
+			real:     []uint16{1, 2},
+			imag:     []uint16{3, 4},
+			dims:     []int{2},
+		},
+		{
+			name:     "Int32",
+			dataType: types.Int32,
+			real:     []int32{1, 2},
+			imag:     []int32{3, 4},
+			dims:     []int{2},
+		},
+		{
+			name:     "Uint32",
+			dataType: types.Uint32,
+			real:     []uint32{1, 2},
+			imag:     []uint32{3, 4},
+			dims:     []int{2},
+		},
+		{
+			name:     "Int64",
+			dataType: types.Int64,
+			real:     []int64{1, 2},
+			imag:     []int64{3, 4},
+			dims:     []int{2},
+		},
+		{
+			name:     "Uint64",
+			dataType: types.Uint64,
+			real:     []uint64{1, 2},
+			imag:     []uint64{3, 4},
+			dims:     []int{2},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			tmpFile := filepath.Join(tmpDir, "test_complex_"+tt.name+".mat")
+
+			writer, err := NewWriter(tmpFile)
+			if err != nil {
+				t.Fatalf("Setup failed: %v", err)
+			}
+			defer writer.Close()
+
+			v := &types.Variable{
+				Name:       "z",
+				Dimensions: tt.dims,
+				DataType:   tt.dataType,
+				IsComplex:  true,
+				Data: &types.NumericArray{
+					Real: tt.real,
+					Imag: tt.imag,
+				},
+			}
+
+			err = writer.WriteVariable(v)
+			if err != nil {
+				t.Errorf("WriteVariable() complex %s error = %v", tt.name, err)
+			}
+		})
+	}
+}
+
+// TestWriteComplexVariable_UnsupportedType tests that writing a complex variable
+// with an unsupported data type (e.g. Char) returns an error.
+func TestWriteComplexVariable_UnsupportedType(t *testing.T) {
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "test.mat")
+
+	writer, err := NewWriter(tmpFile)
+	if err != nil {
+		t.Fatalf("Setup failed: %v", err)
+	}
+	defer writer.Close()
+
+	v := &types.Variable{
+		Name:       "z",
+		Dimensions: []int{2},
+		DataType:   types.Char,
+		IsComplex:  true,
+		Data: &types.NumericArray{
+			Real: []byte{1, 2},
+			Imag: []byte{3, 4},
+		},
+	}
+
+	err = writer.WriteVariable(v)
+	if err == nil {
+		t.Error("WriteVariable() expected error for unsupported Char complex type, got nil")
+	}
+}
+
+// TestWriteVariable_LargeArray tests writing a 1000-element array to verify
+// no errors with larger data sizes.
+func TestWriteVariable_LargeArray(t *testing.T) {
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "test_large.mat")
+
+	writer, err := NewWriter(tmpFile)
+	if err != nil {
+		t.Fatalf("Setup failed: %v", err)
+	}
+	defer writer.Close()
+
+	data := make([]float64, 1000)
+	for i := range data {
+		data[i] = float64(i) * 0.001
+	}
+
+	v := &types.Variable{
+		Name:       "large",
+		Dimensions: []int{1000},
+		DataType:   types.Double,
+		Data:       data,
+	}
+
+	err = writer.WriteVariable(v)
+	if err != nil {
+		t.Errorf("WriteVariable() error for 1000-element array = %v", err)
+	}
+}
+
 // TestValidateDimensions_Overflow tests dimension overflow detection.
 func TestValidateDimensions_Overflow(t *testing.T) {
 	tests := []struct {
