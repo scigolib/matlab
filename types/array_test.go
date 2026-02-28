@@ -157,7 +157,7 @@ func TestNumElements(t *testing.T) {
 }
 
 // Verify interface compliance.
-func TestArrayInterface(t *testing.T) {
+func TestArrayInterface(_ *testing.T) {
 	var _ Array = NumericArray{}
 	var _ Array = CharArray{}
 }

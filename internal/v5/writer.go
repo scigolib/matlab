@@ -290,7 +290,6 @@ func (w *Writer) encodeDimensions(dims []int) []byte {
 	// Convert to int32 array
 	data := make([]byte, len(dims)*4)
 	for i, d := range dims {
-		//nolint:gosec // G115: Dimensions already validated as positive, safe conversion
 		w.header.Order.PutUint32(data[i*4:(i+1)*4], uint32(d))
 	}
 
@@ -500,7 +499,6 @@ func (w *Writer) encodeInt8Array(data []int8) []byte {
 func (w *Writer) encodeInt16Array(data []int16) []byte {
 	buf := make([]byte, len(data)*2)
 	for i, val := range data {
-		//nolint:gosec // G115: int16 to uint16 is safe, preserves bit pattern
 		w.header.Order.PutUint16(buf[i*2:(i+1)*2], uint16(val))
 	}
 	return buf
@@ -517,7 +515,6 @@ func (w *Writer) encodeUint16Array(data []uint16) []byte {
 func (w *Writer) encodeInt32Array(data []int32) []byte {
 	buf := make([]byte, len(data)*4)
 	for i, val := range data {
-		//nolint:gosec // G115: int32 to uint32 is safe, preserves bit pattern
 		w.header.Order.PutUint32(buf[i*4:(i+1)*4], uint32(val))
 	}
 	return buf
@@ -534,7 +531,6 @@ func (w *Writer) encodeUint32Array(data []uint32) []byte {
 func (w *Writer) encodeInt64Array(data []int64) []byte {
 	buf := make([]byte, len(data)*8)
 	for i, val := range data {
-		//nolint:gosec // G115: int64 to uint64 is safe, preserves bit pattern
 		w.header.Order.PutUint64(buf[i*8:(i+1)*8], uint64(val))
 	}
 	return buf

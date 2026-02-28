@@ -968,8 +968,8 @@ func TestParse_SkipData_SmallFormat(t *testing.T) {
 	// The data is in bytes 4-7 of the 8-byte tag.
 	smallTag := make([]byte, 8)
 	binary.LittleEndian.PutUint32(smallTag[0:4], (2<<16)|99) // size=2, type=99
-	smallTag[4] = 0xAA                                        // dummy data byte 1
-	smallTag[5] = 0xBB                                        // dummy data byte 2
+	smallTag[4] = 0xAA                                       // dummy data byte 1
+	smallTag[5] = 0xBB                                       // dummy data byte 2
 
 	var assembled bytes.Buffer
 	assembled.Write(header)
@@ -996,8 +996,6 @@ func TestParse_SkipData_SmallFormat(t *testing.T) {
 // TestParse_CompressedElement tests the miCOMPRESSED branch of Parse().
 // We craft a zlib-compressed miMATRIX element and verify the parser decompresses
 // and parses it correctly.
-//
-//nolint:gocognit // Test builds compressed binary data with multiple steps
 func TestParse_CompressedElement(t *testing.T) {
 	// Step 1: Use the Writer to build a valid miMATRIX element (without header).
 	v := &types.Variable{
@@ -1123,7 +1121,7 @@ func TestParseMatrixContent_InvalidArrayFlags(t *testing.T) {
 	// Craft a miMATRIX tag with a truncated array flags sub-element.
 	// Array flags normally need 8 bytes of data. We'll give it only 4.
 	// miMATRIX tag (8 bytes) + miUINT32 tag (8 bytes) + 4 bytes data (too short)
-	matrixContent := make([]byte, 0)
+	matrixContent := make([]byte, 0, 16)
 
 	// Array flags sub-element: miUINT32 tag with only 4 bytes data (need 8)
 	flagsTag := make([]byte, 8+8) // tag + 4 bytes data + 4 padding

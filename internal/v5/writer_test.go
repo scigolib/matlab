@@ -1258,9 +1258,7 @@ func TestWriteVariable_NilVariable(t *testing.T) {
 	// Passing nil should panic or error. Since validateVariable dereferences v,
 	// a nil variable will cause a panic. We test that it doesn't silently succeed.
 	defer func() {
-		if r := recover(); r == nil {
-			// If no panic, check that error was returned
-		}
+		recover() // catch nil dereference panic if it occurs
 	}()
 
 	// This will likely panic since v.Name dereferences nil
