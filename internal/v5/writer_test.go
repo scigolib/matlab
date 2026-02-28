@@ -591,6 +591,524 @@ func contains(s, substr string) bool {
 	return bytes.Contains([]byte(s), []byte(substr))
 }
 
+// TestEncodeInt8Array tests int8 array encoding.
+func TestEncodeInt8Array(t *testing.T) {
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf, "Test", "IM")
+	if err != nil {
+		t.Fatalf("NewWriter() error = %v", err)
+	}
+
+	data := []int8{-128, 0, 127}
+	encoded := w.encodeInt8Array(data)
+
+	// Verify size: 1 byte per element
+	if len(encoded) != 3 {
+		t.Errorf("Encoded size = %d, want 3", len(encoded))
+	}
+
+	// Decode and verify values
+	for i, want := range data {
+		got := int8(encoded[i])
+		if got != want {
+			t.Errorf("Value[%d] = %d, want %d", i, got, want)
+		}
+	}
+}
+
+// TestEncodeInt16Array tests int16 array encoding.
+func TestEncodeInt16Array(t *testing.T) {
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf, "Test", "IM")
+	if err != nil {
+		t.Fatalf("NewWriter() error = %v", err)
+	}
+
+	data := []int16{-32768, 0, 32767}
+	encoded := w.encodeInt16Array(data)
+
+	// Verify size: 2 bytes per element
+	if len(encoded) != 6 {
+		t.Errorf("Encoded size = %d, want 6", len(encoded))
+	}
+
+	// Decode and verify values
+	for i, want := range data {
+		got := int16(binary.LittleEndian.Uint16(encoded[i*2 : (i+1)*2]))
+		if got != want {
+			t.Errorf("Value[%d] = %d, want %d", i, got, want)
+		}
+	}
+}
+
+// TestEncodeUint16Array tests uint16 array encoding.
+func TestEncodeUint16Array(t *testing.T) {
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf, "Test", "IM")
+	if err != nil {
+		t.Fatalf("NewWriter() error = %v", err)
+	}
+
+	data := []uint16{0, 1000, 65535}
+	encoded := w.encodeUint16Array(data)
+
+	// Verify size: 2 bytes per element
+	if len(encoded) != 6 {
+		t.Errorf("Encoded size = %d, want 6", len(encoded))
+	}
+
+	// Decode and verify values
+	for i, want := range data {
+		got := binary.LittleEndian.Uint16(encoded[i*2 : (i+1)*2])
+		if got != want {
+			t.Errorf("Value[%d] = %d, want %d", i, got, want)
+		}
+	}
+}
+
+// TestEncodeUint32Array tests uint32 array encoding.
+func TestEncodeUint32Array(t *testing.T) {
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf, "Test", "IM")
+	if err != nil {
+		t.Fatalf("NewWriter() error = %v", err)
+	}
+
+	data := []uint32{0, 100000, math.MaxUint32}
+	encoded := w.encodeUint32Array(data)
+
+	// Verify size: 4 bytes per element
+	if len(encoded) != 12 {
+		t.Errorf("Encoded size = %d, want 12", len(encoded))
+	}
+
+	// Decode and verify values
+	for i, want := range data {
+		got := binary.LittleEndian.Uint32(encoded[i*4 : (i+1)*4])
+		if got != want {
+			t.Errorf("Value[%d] = %d, want %d", i, got, want)
+		}
+	}
+}
+
+// TestEncodeInt64Array tests int64 array encoding.
+func TestEncodeInt64Array(t *testing.T) {
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf, "Test", "IM")
+	if err != nil {
+		t.Fatalf("NewWriter() error = %v", err)
+	}
+
+	data := []int64{math.MinInt64, 0, math.MaxInt64}
+	encoded := w.encodeInt64Array(data)
+
+	// Verify size: 8 bytes per element
+	if len(encoded) != 24 {
+		t.Errorf("Encoded size = %d, want 24", len(encoded))
+	}
+
+	// Decode and verify values
+	for i, want := range data {
+		got := int64(binary.LittleEndian.Uint64(encoded[i*8 : (i+1)*8]))
+		if got != want {
+			t.Errorf("Value[%d] = %d, want %d", i, got, want)
+		}
+	}
+}
+
+// TestEncodeUint64Array tests uint64 array encoding.
+func TestEncodeUint64Array(t *testing.T) {
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf, "Test", "IM")
+	if err != nil {
+		t.Fatalf("NewWriter() error = %v", err)
+	}
+
+	data := []uint64{0, 1000000, math.MaxUint64}
+	encoded := w.encodeUint64Array(data)
+
+	// Verify size: 8 bytes per element
+	if len(encoded) != 24 {
+		t.Errorf("Encoded size = %d, want 24", len(encoded))
+	}
+
+	// Decode and verify values
+	for i, want := range data {
+		got := binary.LittleEndian.Uint64(encoded[i*8 : (i+1)*8])
+		if got != want {
+			t.Errorf("Value[%d] = %d, want %d", i, got, want)
+		}
+	}
+}
+
+// TestDataTypeToClass_AllTypes tests all dataTypeToClass mappings including unknown fallback.
+func TestDataTypeToClass_AllTypes(t *testing.T) {
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf, "Test", "IM")
+	if err != nil {
+		t.Fatalf("NewWriter() error = %v", err)
+	}
+
+	tests := []struct {
+		name      string
+		dataType  types.DataType
+		wantClass uint32
+	}{
+		{"Double", types.Double, mxDOUBLE_CLASS},
+		{"Single", types.Single, mxSINGLE_CLASS},
+		{"Int8", types.Int8, mxINT8_CLASS},
+		{"Uint8", types.Uint8, mxUINT8_CLASS},
+		{"Int16", types.Int16, mxINT16_CLASS},
+		{"Uint16", types.Uint16, mxUINT16_CLASS},
+		{"Int32", types.Int32, mxINT32_CLASS},
+		{"Uint32", types.Uint32, mxUINT32_CLASS},
+		{"Int64", types.Int64, mxINT64_CLASS},
+		{"Uint64", types.Uint64, mxUINT64_CLASS},
+		{"Unknown falls back to Double", types.Unknown, mxDOUBLE_CLASS},
+		{"Char falls back to Double", types.Char, mxDOUBLE_CLASS},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := w.dataTypeToClass(tt.dataType)
+			if got != tt.wantClass {
+				t.Errorf("dataTypeToClass(%v) = %d, want %d", tt.dataType, got, tt.wantClass)
+			}
+		})
+	}
+}
+
+// TestEncodeData_AllTypes tests encodeData for all 10 numeric types.
+func TestEncodeData_AllTypes(t *testing.T) {
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf, "Test", "IM")
+	if err != nil {
+		t.Fatalf("NewWriter() error = %v", err)
+	}
+
+	tests := []struct {
+		name     string
+		variable *types.Variable
+	}{
+		{
+			name: "Double",
+			variable: &types.Variable{
+				Name: "a", Dimensions: []int{2}, DataType: types.Double,
+				Data: []float64{1.0, 2.0},
+			},
+		},
+		{
+			name: "Single",
+			variable: &types.Variable{
+				Name: "b", Dimensions: []int{2}, DataType: types.Single,
+				Data: []float32{1.0, 2.0},
+			},
+		},
+		{
+			name: "Int8",
+			variable: &types.Variable{
+				Name: "c", Dimensions: []int{2}, DataType: types.Int8,
+				Data: []int8{-1, 1},
+			},
+		},
+		{
+			name: "Uint8",
+			variable: &types.Variable{
+				Name: "d", Dimensions: []int{2}, DataType: types.Uint8,
+				Data: []byte{0, 255},
+			},
+		},
+		{
+			name: "Int16",
+			variable: &types.Variable{
+				Name: "e", Dimensions: []int{2}, DataType: types.Int16,
+				Data: []int16{-100, 100},
+			},
+		},
+		{
+			name: "Uint16",
+			variable: &types.Variable{
+				Name: "f", Dimensions: []int{2}, DataType: types.Uint16,
+				Data: []uint16{0, 65535},
+			},
+		},
+		{
+			name: "Int32",
+			variable: &types.Variable{
+				Name: "g", Dimensions: []int{2}, DataType: types.Int32,
+				Data: []int32{-100, 100},
+			},
+		},
+		{
+			name: "Uint32",
+			variable: &types.Variable{
+				Name: "h", Dimensions: []int{2}, DataType: types.Uint32,
+				Data: []uint32{0, math.MaxUint32},
+			},
+		},
+		{
+			name: "Int64",
+			variable: &types.Variable{
+				Name: "i", Dimensions: []int{2}, DataType: types.Int64,
+				Data: []int64{math.MinInt64, math.MaxInt64},
+			},
+		},
+		{
+			name: "Uint64",
+			variable: &types.Variable{
+				Name: "j", Dimensions: []int{2}, DataType: types.Uint64,
+				Data: []uint64{0, math.MaxUint64},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			encoded, err := w.encodeData(tt.variable, false)
+			if err != nil {
+				t.Errorf("encodeData(%s) unexpected error: %v", tt.name, err)
+			}
+			if len(encoded) == 0 {
+				t.Errorf("encodeData(%s) returned empty result", tt.name)
+			}
+		})
+	}
+}
+
+// TestEncodeData_ComplexMissingParts tests error when complex data has nil Real or Imag.
+func TestEncodeData_ComplexMissingParts(t *testing.T) {
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf, "Test", "IM")
+	if err != nil {
+		t.Fatalf("NewWriter() error = %v", err)
+	}
+
+	tests := []struct {
+		name      string
+		variable  *types.Variable
+		imaginary bool
+		errMsg    string
+	}{
+		{
+			name: "missing real part",
+			variable: &types.Variable{
+				Name: "x", Dimensions: []int{2}, DataType: types.Double,
+				IsComplex: true,
+				Data: &types.NumericArray{
+					Real: nil,
+					Imag: []float64{1.0, 2.0},
+				},
+			},
+			imaginary: false,
+			errMsg:    "missing real part",
+		},
+		{
+			name: "missing imag part",
+			variable: &types.Variable{
+				Name: "y", Dimensions: []int{2}, DataType: types.Double,
+				IsComplex: true,
+				Data: &types.NumericArray{
+					Real: []float64{1.0, 2.0},
+					Imag: nil,
+				},
+			},
+			imaginary: true,
+			errMsg:    "missing imaginary part",
+		},
+		{
+			name: "complex with wrong Data type",
+			variable: &types.Variable{
+				Name: "z", Dimensions: []int{2}, DataType: types.Double,
+				IsComplex: true,
+				Data:      []float64{1.0, 2.0}, // Not *NumericArray
+			},
+			imaginary: false,
+			errMsg:    "must have *types.NumericArray",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := w.encodeData(tt.variable, tt.imaginary)
+			if err == nil {
+				t.Errorf("encodeData() expected error containing %q, got nil", tt.errMsg)
+				return
+			}
+			if !contains(err.Error(), tt.errMsg) {
+				t.Errorf("encodeData() error = %q, want containing %q", err.Error(), tt.errMsg)
+			}
+		})
+	}
+}
+
+// TestEncodeData_WrongSliceType tests error when data slice type does not match DataType.
+func TestEncodeData_WrongSliceType(t *testing.T) {
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf, "Test", "IM")
+	if err != nil {
+		t.Fatalf("NewWriter() error = %v", err)
+	}
+
+	tests := []struct {
+		name     string
+		dataType types.DataType
+		data     interface{}
+		errMsg   string
+	}{
+		{"Double with int32 data", types.Double, []int32{1, 2}, "expected []float64"},
+		{"Single with float64 data", types.Single, []float64{1.0}, "expected []float32"},
+		{"Int8 with byte data", types.Int8, []byte{1, 2}, "expected []int8"},
+		{"Uint8 with int8 data", types.Uint8, []int8{1, 2}, "expected []byte"},
+		{"Int16 with int32 data", types.Int16, []int32{1, 2}, "expected []int16"},
+		{"Uint16 with uint32 data", types.Uint16, []uint32{1, 2}, "expected []uint16"},
+		{"Int32 with int64 data", types.Int32, []int64{1, 2}, "expected []int32"},
+		{"Uint32 with uint64 data", types.Uint32, []uint64{1, 2}, "expected []uint32"},
+		{"Int64 with int32 data", types.Int64, []int32{1, 2}, "expected []int64"},
+		{"Uint64 with uint32 data", types.Uint64, []uint32{1, 2}, "expected []uint64"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := &types.Variable{
+				Name: "x", Dimensions: []int{2}, DataType: tt.dataType,
+				Data: tt.data,
+			}
+			_, err := w.encodeData(v, false)
+			if err == nil {
+				t.Errorf("encodeData() expected error containing %q, got nil", tt.errMsg)
+				return
+			}
+			if !contains(err.Error(), tt.errMsg) {
+				t.Errorf("encodeData() error = %q, want containing %q", err.Error(), tt.errMsg)
+			}
+		})
+	}
+}
+
+// TestEncodeData_UnsupportedType tests error for unsupported DataType.
+func TestEncodeData_UnsupportedType(t *testing.T) {
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf, "Test", "IM")
+	if err != nil {
+		t.Fatalf("NewWriter() error = %v", err)
+	}
+
+	v := &types.Variable{
+		Name:       "x",
+		Dimensions: []int{1},
+		DataType:   types.Unknown,
+		Data:       []float64{1.0},
+	}
+
+	_, err = w.encodeData(v, false)
+	if err == nil {
+		t.Error("encodeData() expected error for unsupported type, got nil")
+		return
+	}
+	if !contains(err.Error(), "unsupported data type") {
+		t.Errorf("encodeData() error = %q, want containing %q", err.Error(), "unsupported data type")
+	}
+}
+
+// TestWriteVariable_AllNumericTypes tests writing variables of all 10 numeric types.
+func TestWriteVariable_AllNumericTypes(t *testing.T) {
+	tests := []struct {
+		name     string
+		variable *types.Variable
+	}{
+		{
+			name: "Double",
+			variable: &types.Variable{
+				Name: "a", Dimensions: []int{3}, DataType: types.Double,
+				Data: []float64{1.0, 2.0, 3.0},
+			},
+		},
+		{
+			name: "Single",
+			variable: &types.Variable{
+				Name: "b", Dimensions: []int{3}, DataType: types.Single,
+				Data: []float32{1.0, 2.0, 3.0},
+			},
+		},
+		{
+			name: "Int8",
+			variable: &types.Variable{
+				Name: "c", Dimensions: []int{3}, DataType: types.Int8,
+				Data: []int8{-128, 0, 127},
+			},
+		},
+		{
+			name: "Uint8",
+			variable: &types.Variable{
+				Name: "d", Dimensions: []int{3}, DataType: types.Uint8,
+				Data: []byte{0, 128, 255},
+			},
+		},
+		{
+			name: "Int16",
+			variable: &types.Variable{
+				Name: "e", Dimensions: []int{3}, DataType: types.Int16,
+				Data: []int16{-32768, 0, 32767},
+			},
+		},
+		{
+			name: "Uint16",
+			variable: &types.Variable{
+				Name: "f", Dimensions: []int{3}, DataType: types.Uint16,
+				Data: []uint16{0, 1000, 65535},
+			},
+		},
+		{
+			name: "Int32",
+			variable: &types.Variable{
+				Name: "g", Dimensions: []int{3}, DataType: types.Int32,
+				Data: []int32{-2147483648, 0, 2147483647},
+			},
+		},
+		{
+			name: "Uint32",
+			variable: &types.Variable{
+				Name: "h", Dimensions: []int{3}, DataType: types.Uint32,
+				Data: []uint32{0, 100000, math.MaxUint32},
+			},
+		},
+		{
+			name: "Int64",
+			variable: &types.Variable{
+				Name: "i", Dimensions: []int{3}, DataType: types.Int64,
+				Data: []int64{math.MinInt64, 0, math.MaxInt64},
+			},
+		},
+		{
+			name: "Uint64",
+			variable: &types.Variable{
+				Name: "j", Dimensions: []int{3}, DataType: types.Uint64,
+				Data: []uint64{0, 1000000, math.MaxUint64},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			w, err := NewWriter(&buf, "Test", "IM")
+			if err != nil {
+				t.Fatalf("NewWriter() error = %v", err)
+			}
+
+			err = w.WriteVariable(tt.variable)
+			if err != nil {
+				t.Fatalf("WriteVariable(%s) unexpected error: %v", tt.name, err)
+			}
+
+			// Buffer should be larger than 128 bytes (header) since variable data was written
+			if buf.Len() <= 128 {
+				t.Errorf("Buffer size = %d, expected > 128 (header + variable data)", buf.Len())
+			}
+		})
+	}
+}
+
 // TestValidateDimensions_Overflow tests dimension overflow detection.
 func TestValidateDimensions_Overflow(t *testing.T) {
 	tests := []struct {
