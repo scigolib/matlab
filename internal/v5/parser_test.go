@@ -1071,6 +1071,814 @@ func TestParse_CompressedElement(t *testing.T) {
 	}
 }
 
+// TestNewParser_BigEndianHeader builds valid big-endian data and verifies parser header.
+func TestNewParser_BigEndianHeader(t *testing.T) {
+	reader := buildV5TestDataEndian(t, "MI")
+	parser, err := NewParser(reader)
+	if err != nil {
+		t.Fatalf("NewParser() error: %v", err)
+	}
+	if parser.Header.EndianIndicator != "MI" {
+		t.Errorf("EndianIndicator = %q, want %q", parser.Header.EndianIndicator, "MI")
+	}
+	if parser.Header.Version != 0x0100 {
+		t.Errorf("Version = 0x%04x, want 0x0100", parser.Header.Version)
+	}
+}
+
+// TestParse_InvalidHeader tests that a 128-byte header with invalid endian indicator
+// causes NewParser to return an error.
+func TestParse_InvalidHeader(t *testing.T) {
+	// Build a valid header first, then corrupt the endian indicator
+	header := make([]byte, 128)
+	copy(header, "Test invalid header")
+	// Put version at 124-125 (doesn't matter, header won't parse)
+	binary.LittleEndian.PutUint16(header[124:126], 0x0100)
+	// Invalid endian indicator at bytes 126-127
+	copy(header[126:128], "XX")
+
+	reader := bytes.NewReader(header)
+	_, err := NewParser(reader)
+	if err == nil {
+		t.Error("NewParser() expected error for invalid endian indicator, got nil")
+	}
+}
+
+// TestParseMatrixContent_InvalidArrayFlags crafts binary with a miMATRIX tag whose
+// inner array flags sub-element is too short, causing a parse error.
+func TestParseMatrixContent_InvalidArrayFlags(t *testing.T) {
+	// Build valid data first
+	v := &types.Variable{
+		Name:       "test",
+		Dimensions: []int{1, 2},
+		DataType:   types.Double,
+		Data:       []float64{1.0, 2.0},
+	}
+	writerBuf := buildV5TestData(t, v)
+	allBytes := make([]byte, writerBuf.Len())
+	_, _ = writerBuf.Read(allBytes)
+
+	header := allBytes[:128]
+
+	// Craft a miMATRIX tag with a truncated array flags sub-element.
+	// Array flags normally need 8 bytes of data. We'll give it only 4.
+	// miMATRIX tag (8 bytes) + miUINT32 tag (8 bytes) + 4 bytes data (too short)
+	matrixContent := make([]byte, 0)
+
+	// Array flags sub-element: miUINT32 tag with only 4 bytes data (need 8)
+	flagsTag := make([]byte, 8+8) // tag + 4 bytes data + 4 padding
+	binary.LittleEndian.PutUint32(flagsTag[0:4], miUINT32)
+	binary.LittleEndian.PutUint32(flagsTag[4:8], 4) // only 4 bytes (need 8 for valid flags)
+	// 4 bytes data + 4 bytes padding
+	matrixContent = append(matrixContent, flagsTag...)
+
+	// miMATRIX outer tag
+	matrixTag := make([]byte, 8)
+	binary.LittleEndian.PutUint32(matrixTag[0:4], miMATRIX)
+	binary.LittleEndian.PutUint32(matrixTag[4:8], uint32(len(matrixContent)))
+
+	var assembled bytes.Buffer
+	assembled.Write(header)
+	assembled.Write(matrixTag)
+	assembled.Write(matrixContent)
+
+	parser, err := NewParser(&assembled)
+	if err != nil {
+		t.Fatalf("NewParser() error: %v", err)
+	}
+
+	_, err = parser.Parse()
+	if err == nil {
+		t.Error("Parse() expected error for invalid array flags size, got nil")
+	}
+}
+
+// TestReadData_ZeroSizeRegularTag crafts a matrix where a data sub-element tag
+// has size=0, which should return an empty slice.
+func TestReadData_ZeroSizeRegularTag(t *testing.T) {
+	// Build valid header
+	var headerBuf bytes.Buffer
+	_, err := NewWriter(&headerBuf, "Test", "IM")
+	if err != nil {
+		t.Fatalf("NewWriter() error: %v", err)
+	}
+	header := headerBuf.Bytes()[:128]
+
+	// We need to craft a complete miMATRIX element with a zero-size data element.
+	// Structure: array flags + dims + name + real data (size=0)
+
+	var content bytes.Buffer
+
+	// Sub-element 1: Array flags (miUINT32, 8 bytes data)
+	flagsTag := make([]byte, 16) // 8 tag + 8 data
+	binary.LittleEndian.PutUint32(flagsTag[0:4], miUINT32)
+	binary.LittleEndian.PutUint32(flagsTag[4:8], 8)
+	// flags=0, class=mxDOUBLE_CLASS(6)
+	binary.LittleEndian.PutUint32(flagsTag[8:12], 0)
+	binary.LittleEndian.PutUint32(flagsTag[12:16], mxDOUBLE_CLASS)
+	content.Write(flagsTag)
+
+	// Sub-element 2: Dimensions (miINT32, [1,0] -> 8 bytes)
+	dimsTag := make([]byte, 16) // 8 tag + 8 data
+	binary.LittleEndian.PutUint32(dimsTag[0:4], miINT32)
+	binary.LittleEndian.PutUint32(dimsTag[4:8], 8)
+	binary.LittleEndian.PutUint32(dimsTag[8:12], 1)
+	binary.LittleEndian.PutUint32(dimsTag[12:16], 0) // 0 columns
+	content.Write(dimsTag)
+
+	// Sub-element 3: Name "z" using small format
+	// Small format: (size << 16) | type in first word, data in second word
+	nameTag := make([]byte, 8)
+	binary.LittleEndian.PutUint32(nameTag[0:4], (1<<16)|miINT8) // size=1, type=miINT8
+	nameTag[4] = 'z'
+	content.Write(nameTag)
+
+	// Sub-element 4: Real data with size=0
+	dataTag := make([]byte, 8) // 8 tag, 0 data
+	binary.LittleEndian.PutUint32(dataTag[0:4], miDOUBLE)
+	binary.LittleEndian.PutUint32(dataTag[4:8], 0) // size = 0
+	content.Write(dataTag)
+
+	// miMATRIX outer tag
+	matrixTag := make([]byte, 8)
+	binary.LittleEndian.PutUint32(matrixTag[0:4], miMATRIX)
+	binary.LittleEndian.PutUint32(matrixTag[4:8], uint32(content.Len()))
+
+	var assembled bytes.Buffer
+	assembled.Write(header)
+	assembled.Write(matrixTag)
+	assembled.Write(content.Bytes())
+
+	parser, err := NewParser(&assembled)
+	if err != nil {
+		t.Fatalf("NewParser() error: %v", err)
+	}
+
+	file, err := parser.Parse()
+	if err != nil {
+		t.Fatalf("Parse() error: %v", err)
+	}
+	if len(file.Variables) != 1 {
+		t.Fatalf("Parse() returned %d variables, want 1", len(file.Variables))
+	}
+
+	got := file.Variables[0]
+	if got.Name != "z" {
+		t.Errorf("Name = %q, want %q", got.Name, "z")
+	}
+}
+
+// TestParse_TruncatedMatrixData tests that parse returns an error when the matrix
+// data is truncated (io.ReadFull cannot read the full declared size).
+func TestParse_TruncatedMatrixData(t *testing.T) {
+	// Build valid data first, then truncate the matrix portion
+	v := &types.Variable{
+		Name:       "trunc",
+		Dimensions: []int{1, 3},
+		DataType:   types.Double,
+		Data:       []float64{1.0, 2.0, 3.0},
+	}
+	writerBuf := buildV5TestData(t, v)
+	allBytes := make([]byte, writerBuf.Len())
+	_, _ = writerBuf.Read(allBytes)
+
+	// Keep header + miMATRIX tag (8 bytes) but truncate the matrix content
+	// The miMATRIX tag declares a size, but we only provide half of it
+	truncated := allBytes[:128+8+10] // header + tag + only 10 bytes of content
+
+	parser, err := NewParser(bytes.NewReader(truncated))
+	if err != nil {
+		t.Fatalf("NewParser() error: %v", err)
+	}
+
+	_, err = parser.Parse()
+	if err == nil {
+		t.Error("Parse() expected error for truncated matrix data, got nil")
+	}
+}
+
+// TestParse_CompressedElement_InvalidZlib tests that Parse returns an error when
+// a miCOMPRESSED element contains invalid zlib data.
+func TestParse_CompressedElement_InvalidZlib(t *testing.T) {
+	// Build valid header
+	writerBuf := buildV5TestData(t)
+	allBytes := make([]byte, writerBuf.Len())
+	_, _ = writerBuf.Read(allBytes)
+	header := allBytes[:128]
+
+	// Craft a miCOMPRESSED tag with invalid zlib data
+	invalidZlib := []byte{0xDE, 0xAD, 0xBE, 0xEF, 0x01, 0x02, 0x03, 0x04}
+	compressedTag := make([]byte, 8)
+	binary.LittleEndian.PutUint32(compressedTag[0:4], miCOMPRESSED)
+	binary.LittleEndian.PutUint32(compressedTag[4:8], uint32(len(invalidZlib)))
+
+	var assembled bytes.Buffer
+	assembled.Write(header)
+	assembled.Write(compressedTag)
+	assembled.Write(invalidZlib)
+
+	parser, err := NewParser(&assembled)
+	if err != nil {
+		t.Fatalf("NewParser() error: %v", err)
+	}
+
+	_, err = parser.Parse()
+	if err == nil {
+		t.Error("Parse() expected error for invalid zlib in compressed element, got nil")
+	}
+}
+
+// TestParse_CompressedElement_BadInnerTag tests that Parse returns an error when
+// a miCOMPRESSED element decompresses to data that cannot be parsed as a valid tag.
+func TestParse_CompressedElement_BadInnerTag(t *testing.T) {
+	// Build valid header
+	writerBuf := buildV5TestData(t)
+	allBytes := make([]byte, writerBuf.Len())
+	_, _ = writerBuf.Read(allBytes)
+	header := allBytes[:128]
+
+	// Create zlib-compressed data that is too short to contain a valid tag
+	shortData := []byte{0x01, 0x02, 0x03} // only 3 bytes, need 8 for a tag
+	var compressedBuf bytes.Buffer
+	zlibWriter := zlib.NewWriter(&compressedBuf)
+	_, _ = zlibWriter.Write(shortData)
+	_ = zlibWriter.Close()
+	compressedData := compressedBuf.Bytes()
+
+	compressedTag := make([]byte, 8)
+	binary.LittleEndian.PutUint32(compressedTag[0:4], miCOMPRESSED)
+	binary.LittleEndian.PutUint32(compressedTag[4:8], uint32(len(compressedData)))
+
+	var assembled bytes.Buffer
+	assembled.Write(header)
+	assembled.Write(compressedTag)
+	assembled.Write(compressedData)
+
+	parser, err := NewParser(&assembled)
+	if err != nil {
+		t.Fatalf("NewParser() error: %v", err)
+	}
+
+	_, err = parser.Parse()
+	if err == nil {
+		t.Error("Parse() expected error for bad inner tag in compressed element, got nil")
+	}
+}
+
+// TestParseMatrixContent_TruncatedDimsTag tests that parseMatrixContent returns an error
+// when the dimensions tag cannot be read (truncated after array flags).
+func TestParseMatrixContent_TruncatedDimsTag(t *testing.T) {
+	// Build valid header
+	var headerBuf bytes.Buffer
+	_, _ = NewWriter(&headerBuf, "Test", "IM")
+	header := headerBuf.Bytes()[:128]
+
+	// Craft a miMATRIX with valid array flags but no dimensions tag
+	var content bytes.Buffer
+
+	// Sub-element 1: Array flags (miUINT32, 8 bytes data)
+	flagsTag := make([]byte, 16)
+	binary.LittleEndian.PutUint32(flagsTag[0:4], miUINT32)
+	binary.LittleEndian.PutUint32(flagsTag[4:8], 8)
+	binary.LittleEndian.PutUint32(flagsTag[8:12], 0)
+	binary.LittleEndian.PutUint32(flagsTag[12:16], mxDOUBLE_CLASS)
+	content.Write(flagsTag)
+	// No dimensions tag follows - truncated
+
+	matrixTag := make([]byte, 8)
+	binary.LittleEndian.PutUint32(matrixTag[0:4], miMATRIX)
+	binary.LittleEndian.PutUint32(matrixTag[4:8], uint32(content.Len()))
+
+	var assembled bytes.Buffer
+	assembled.Write(header)
+	assembled.Write(matrixTag)
+	assembled.Write(content.Bytes())
+
+	parser, err := NewParser(&assembled)
+	if err != nil {
+		t.Fatalf("NewParser() error: %v", err)
+	}
+
+	_, err = parser.Parse()
+	if err == nil {
+		t.Error("Parse() expected error for truncated dimensions tag, got nil")
+	}
+}
+
+// TestParseMatrixContent_TruncatedNameTag tests error when name tag cannot be read.
+func TestParseMatrixContent_TruncatedNameTag(t *testing.T) {
+	var headerBuf bytes.Buffer
+	_, _ = NewWriter(&headerBuf, "Test", "IM")
+	header := headerBuf.Bytes()[:128]
+
+	var content bytes.Buffer
+
+	// Sub-element 1: Array flags
+	flagsTag := make([]byte, 16)
+	binary.LittleEndian.PutUint32(flagsTag[0:4], miUINT32)
+	binary.LittleEndian.PutUint32(flagsTag[4:8], 8)
+	binary.LittleEndian.PutUint32(flagsTag[8:12], 0)
+	binary.LittleEndian.PutUint32(flagsTag[12:16], mxDOUBLE_CLASS)
+	content.Write(flagsTag)
+
+	// Sub-element 2: Dimensions (valid)
+	dimsTag := make([]byte, 16)
+	binary.LittleEndian.PutUint32(dimsTag[0:4], miINT32)
+	binary.LittleEndian.PutUint32(dimsTag[4:8], 8)
+	binary.LittleEndian.PutUint32(dimsTag[8:12], 1)
+	binary.LittleEndian.PutUint32(dimsTag[12:16], 2)
+	content.Write(dimsTag)
+
+	// No name tag follows - truncated
+
+	matrixTag := make([]byte, 8)
+	binary.LittleEndian.PutUint32(matrixTag[0:4], miMATRIX)
+	binary.LittleEndian.PutUint32(matrixTag[4:8], uint32(content.Len()))
+
+	var assembled bytes.Buffer
+	assembled.Write(header)
+	assembled.Write(matrixTag)
+	assembled.Write(content.Bytes())
+
+	parser, err := NewParser(&assembled)
+	if err != nil {
+		t.Fatalf("NewParser() error: %v", err)
+	}
+
+	_, err = parser.Parse()
+	if err == nil {
+		t.Error("Parse() expected error for truncated name tag, got nil")
+	}
+}
+
+// TestParseMatrixContent_TruncatedRealDataTag tests error when real data tag cannot be read.
+func TestParseMatrixContent_TruncatedRealDataTag(t *testing.T) {
+	var headerBuf bytes.Buffer
+	_, _ = NewWriter(&headerBuf, "Test", "IM")
+	header := headerBuf.Bytes()[:128]
+
+	var content bytes.Buffer
+
+	// Sub-element 1: Array flags
+	flagsTag := make([]byte, 16)
+	binary.LittleEndian.PutUint32(flagsTag[0:4], miUINT32)
+	binary.LittleEndian.PutUint32(flagsTag[4:8], 8)
+	binary.LittleEndian.PutUint32(flagsTag[8:12], 0)
+	binary.LittleEndian.PutUint32(flagsTag[12:16], mxDOUBLE_CLASS)
+	content.Write(flagsTag)
+
+	// Sub-element 2: Dimensions
+	dimsTag := make([]byte, 16)
+	binary.LittleEndian.PutUint32(dimsTag[0:4], miINT32)
+	binary.LittleEndian.PutUint32(dimsTag[4:8], 8)
+	binary.LittleEndian.PutUint32(dimsTag[8:12], 1)
+	binary.LittleEndian.PutUint32(dimsTag[12:16], 2)
+	content.Write(dimsTag)
+
+	// Sub-element 3: Name "x" (small format)
+	nameTag := make([]byte, 8)
+	binary.LittleEndian.PutUint32(nameTag[0:4], (1<<16)|miINT8)
+	nameTag[4] = 'x'
+	content.Write(nameTag)
+
+	// No real data tag follows - truncated
+
+	matrixTag := make([]byte, 8)
+	binary.LittleEndian.PutUint32(matrixTag[0:4], miMATRIX)
+	binary.LittleEndian.PutUint32(matrixTag[4:8], uint32(content.Len()))
+
+	var assembled bytes.Buffer
+	assembled.Write(header)
+	assembled.Write(matrixTag)
+	assembled.Write(content.Bytes())
+
+	parser, err := NewParser(&assembled)
+	if err != nil {
+		t.Fatalf("NewParser() error: %v", err)
+	}
+
+	_, err = parser.Parse()
+	if err == nil {
+		t.Error("Parse() expected error for truncated real data tag, got nil")
+	}
+}
+
+// TestParseMatrixContent_TruncatedImagDataTag tests error when imaginary data tag
+// cannot be read for a complex variable.
+func TestParseMatrixContent_TruncatedImagDataTag(t *testing.T) {
+	var headerBuf bytes.Buffer
+	_, _ = NewWriter(&headerBuf, "Test", "IM")
+	header := headerBuf.Bytes()[:128]
+
+	var content bytes.Buffer
+
+	// Sub-element 1: Array flags with complex bit set
+	flagsTag := make([]byte, 16)
+	binary.LittleEndian.PutUint32(flagsTag[0:4], miUINT32)
+	binary.LittleEndian.PutUint32(flagsTag[4:8], 8)
+	binary.LittleEndian.PutUint32(flagsTag[8:12], 0x0800) // complex bit
+	binary.LittleEndian.PutUint32(flagsTag[12:16], mxDOUBLE_CLASS)
+	content.Write(flagsTag)
+
+	// Sub-element 2: Dimensions
+	dimsTag := make([]byte, 16)
+	binary.LittleEndian.PutUint32(dimsTag[0:4], miINT32)
+	binary.LittleEndian.PutUint32(dimsTag[4:8], 8)
+	binary.LittleEndian.PutUint32(dimsTag[8:12], 1)
+	binary.LittleEndian.PutUint32(dimsTag[12:16], 2)
+	content.Write(dimsTag)
+
+	// Sub-element 3: Name "c" (small format)
+	nameTag := make([]byte, 8)
+	binary.LittleEndian.PutUint32(nameTag[0:4], (1<<16)|miINT8)
+	nameTag[4] = 'c'
+	content.Write(nameTag)
+
+	// Sub-element 4: Real data (2 doubles = 16 bytes)
+	realTag := make([]byte, 24) // 8 tag + 16 data
+	binary.LittleEndian.PutUint32(realTag[0:4], miDOUBLE)
+	binary.LittleEndian.PutUint32(realTag[4:8], 16)
+	// 16 bytes of data (two float64 zeros)
+	content.Write(realTag)
+
+	// No imaginary data tag follows - truncated (but complex flag is set)
+
+	matrixTag := make([]byte, 8)
+	binary.LittleEndian.PutUint32(matrixTag[0:4], miMATRIX)
+	binary.LittleEndian.PutUint32(matrixTag[4:8], uint32(content.Len()))
+
+	var assembled bytes.Buffer
+	assembled.Write(header)
+	assembled.Write(matrixTag)
+	assembled.Write(content.Bytes())
+
+	parser, err := NewParser(&assembled)
+	if err != nil {
+		t.Fatalf("NewParser() error: %v", err)
+	}
+
+	_, err = parser.Parse()
+	if err == nil {
+		t.Error("Parse() expected error for truncated imaginary data tag, got nil")
+	}
+}
+
+// TestReadData_RegularFormat_TruncatedData tests readData error when io.ReadFull
+// can't read the full declared size from the stream.
+func TestReadData_RegularFormat_TruncatedData(t *testing.T) {
+	var headerBuf bytes.Buffer
+	_, _ = NewWriter(&headerBuf, "Test", "IM")
+	header := headerBuf.Bytes()[:128]
+
+	var content bytes.Buffer
+
+	// Array flags
+	flagsTag := make([]byte, 16)
+	binary.LittleEndian.PutUint32(flagsTag[0:4], miUINT32)
+	binary.LittleEndian.PutUint32(flagsTag[4:8], 8)
+	binary.LittleEndian.PutUint32(flagsTag[8:12], 0)
+	binary.LittleEndian.PutUint32(flagsTag[12:16], mxDOUBLE_CLASS)
+	content.Write(flagsTag)
+
+	// Dimensions
+	dimsTag := make([]byte, 16)
+	binary.LittleEndian.PutUint32(dimsTag[0:4], miINT32)
+	binary.LittleEndian.PutUint32(dimsTag[4:8], 8)
+	binary.LittleEndian.PutUint32(dimsTag[8:12], 1)
+	binary.LittleEndian.PutUint32(dimsTag[12:16], 2)
+	content.Write(dimsTag)
+
+	// Name "x"
+	nameTag := make([]byte, 8)
+	binary.LittleEndian.PutUint32(nameTag[0:4], (1<<16)|miINT8)
+	nameTag[4] = 'x'
+	content.Write(nameTag)
+
+	// Real data tag declares 16 bytes but we only provide 4
+	dataTag := make([]byte, 12) // 8 tag + only 4 bytes of data (need 16)
+	binary.LittleEndian.PutUint32(dataTag[0:4], miDOUBLE)
+	binary.LittleEndian.PutUint32(dataTag[4:8], 16) // claims 16 bytes
+	// only 4 bytes follow
+	content.Write(dataTag)
+
+	matrixTag := make([]byte, 8)
+	// Use the actual content length (which is shorter than the data tag claims)
+	binary.LittleEndian.PutUint32(matrixTag[0:4], miMATRIX)
+	binary.LittleEndian.PutUint32(matrixTag[4:8], uint32(content.Len()))
+
+	var assembled bytes.Buffer
+	assembled.Write(header)
+	assembled.Write(matrixTag)
+	assembled.Write(content.Bytes())
+
+	parser, err := NewParser(&assembled)
+	if err != nil {
+		t.Fatalf("NewParser() error: %v", err)
+	}
+
+	_, err = parser.Parse()
+	if err == nil {
+		t.Error("Parse() expected error for truncated data read, got nil")
+	}
+}
+
+// TestParse_CompressedElement_InnerMatrixError tests error when compressed data
+// decompresses to a valid miMATRIX tag but with corrupted matrix content.
+func TestParse_CompressedElement_InnerMatrixError(t *testing.T) {
+	var headerBuf bytes.Buffer
+	_, _ = NewWriter(&headerBuf, "Test", "IM")
+	header := headerBuf.Bytes()[:128]
+
+	// Craft a miMATRIX element with truncated content (valid tag, bad inner data)
+	var matrixInner bytes.Buffer
+
+	// miMATRIX tag with declared size of 24 bytes
+	innerTag := make([]byte, 8)
+	binary.LittleEndian.PutUint32(innerTag[0:4], miMATRIX)
+	binary.LittleEndian.PutUint32(innerTag[4:8], 24)
+	matrixInner.Write(innerTag)
+
+	// Write only 16 bytes of content instead of the declared 24
+	// This makes io.ReadFull in parseMatrix fail
+	matrixInner.Write(make([]byte, 16))
+
+	// Compress
+	var compressedBuf bytes.Buffer
+	zlibWriter := zlib.NewWriter(&compressedBuf)
+	_, _ = zlibWriter.Write(matrixInner.Bytes())
+	_ = zlibWriter.Close()
+	compressedData := compressedBuf.Bytes()
+
+	compressedTag := make([]byte, 8)
+	binary.LittleEndian.PutUint32(compressedTag[0:4], miCOMPRESSED)
+	binary.LittleEndian.PutUint32(compressedTag[4:8], uint32(len(compressedData)))
+
+	var assembled bytes.Buffer
+	assembled.Write(header)
+	assembled.Write(compressedTag)
+	assembled.Write(compressedData)
+
+	parser, err := NewParser(&assembled)
+	if err != nil {
+		t.Fatalf("NewParser() error: %v", err)
+	}
+
+	_, err = parser.Parse()
+	if err == nil {
+		t.Error("Parse() expected error for corrupted inner matrix in compressed element, got nil")
+	}
+}
+
+// TestParseMatrixContent_EmptyMatrix tests that a miMATRIX with size=0 returns error
+// because readTag for array flags will fail (covers parseMatrixContent line 133-135).
+func TestParseMatrixContent_EmptyMatrix(t *testing.T) {
+	var headerBuf bytes.Buffer
+	_, _ = NewWriter(&headerBuf, "Test", "IM")
+	header := headerBuf.Bytes()[:128]
+
+	// miMATRIX tag with size=0 (empty content)
+	matrixTag := make([]byte, 8)
+	binary.LittleEndian.PutUint32(matrixTag[0:4], miMATRIX)
+	binary.LittleEndian.PutUint32(matrixTag[4:8], 0)
+
+	var assembled bytes.Buffer
+	assembled.Write(header)
+	assembled.Write(matrixTag)
+
+	parser, err := NewParser(&assembled)
+	if err != nil {
+		t.Fatalf("NewParser() error: %v", err)
+	}
+
+	_, err = parser.Parse()
+	if err == nil {
+		t.Error("Parse() expected error for empty matrix content, got nil")
+	}
+}
+
+// TestParseMatrixContent_FlagsDataReadError tests readData error for array flags
+// by providing a flags tag that declares more data than is available.
+func TestParseMatrixContent_FlagsDataReadError(t *testing.T) {
+	var headerBuf bytes.Buffer
+	_, _ = NewWriter(&headerBuf, "Test", "IM")
+	header := headerBuf.Bytes()[:128]
+
+	// Construct a miMATRIX whose content has a valid flags tag but
+	// the tag declares 8 bytes of data while only 4 are provided.
+	var content bytes.Buffer
+
+	// flags tag: miUINT32, size=8 (regular format)
+	flagsTag := make([]byte, 8)
+	binary.LittleEndian.PutUint32(flagsTag[0:4], miUINT32)
+	binary.LittleEndian.PutUint32(flagsTag[4:8], 8) // claims 8 bytes of data
+	content.Write(flagsTag)
+	// Only provide 4 bytes of data (not 8)
+	content.Write(make([]byte, 4))
+
+	matrixTag := make([]byte, 8)
+	binary.LittleEndian.PutUint32(matrixTag[0:4], miMATRIX)
+	binary.LittleEndian.PutUint32(matrixTag[4:8], uint32(content.Len()))
+
+	var assembled bytes.Buffer
+	assembled.Write(header)
+	assembled.Write(matrixTag)
+	assembled.Write(content.Bytes())
+
+	parser, err := NewParser(&assembled)
+	if err != nil {
+		t.Fatalf("NewParser() error: %v", err)
+	}
+
+	_, err = parser.Parse()
+	if err == nil {
+		t.Error("Parse() expected error for flags data read failure, got nil")
+	}
+}
+
+// TestParseMatrixContent_DimsDataReadError tests readData error for dimensions
+// by providing a dims tag that declares more data than is available.
+func TestParseMatrixContent_DimsDataReadError(t *testing.T) {
+	var headerBuf bytes.Buffer
+	_, _ = NewWriter(&headerBuf, "Test", "IM")
+	header := headerBuf.Bytes()[:128]
+
+	var content bytes.Buffer
+
+	// Valid array flags
+	flagsTag := make([]byte, 16)
+	binary.LittleEndian.PutUint32(flagsTag[0:4], miUINT32)
+	binary.LittleEndian.PutUint32(flagsTag[4:8], 8)
+	binary.LittleEndian.PutUint32(flagsTag[8:12], 0)
+	binary.LittleEndian.PutUint32(flagsTag[12:16], mxDOUBLE_CLASS)
+	content.Write(flagsTag)
+
+	// Dims tag: declares 8 bytes but only 2 available
+	dimsTag := make([]byte, 8)
+	binary.LittleEndian.PutUint32(dimsTag[0:4], miINT32)
+	binary.LittleEndian.PutUint32(dimsTag[4:8], 8) // claims 8 bytes
+	content.Write(dimsTag)
+	content.Write(make([]byte, 2)) // only 2 bytes available
+
+	matrixTag := make([]byte, 8)
+	binary.LittleEndian.PutUint32(matrixTag[0:4], miMATRIX)
+	binary.LittleEndian.PutUint32(matrixTag[4:8], uint32(content.Len()))
+
+	var assembled bytes.Buffer
+	assembled.Write(header)
+	assembled.Write(matrixTag)
+	assembled.Write(content.Bytes())
+
+	parser, err := NewParser(&assembled)
+	if err != nil {
+		t.Fatalf("NewParser() error: %v", err)
+	}
+
+	_, err = parser.Parse()
+	if err == nil {
+		t.Error("Parse() expected error for dims data read failure, got nil")
+	}
+}
+
+// TestParseMatrixContent_NameDataReadError tests readData error for name
+// by providing a name tag that declares more data than is available.
+func TestParseMatrixContent_NameDataReadError(t *testing.T) {
+	var headerBuf bytes.Buffer
+	_, _ = NewWriter(&headerBuf, "Test", "IM")
+	header := headerBuf.Bytes()[:128]
+
+	var content bytes.Buffer
+
+	// Valid array flags
+	flagsTag := make([]byte, 16)
+	binary.LittleEndian.PutUint32(flagsTag[0:4], miUINT32)
+	binary.LittleEndian.PutUint32(flagsTag[4:8], 8)
+	binary.LittleEndian.PutUint32(flagsTag[8:12], 0)
+	binary.LittleEndian.PutUint32(flagsTag[12:16], mxDOUBLE_CLASS)
+	content.Write(flagsTag)
+
+	// Valid dimensions
+	dimsTag := make([]byte, 16)
+	binary.LittleEndian.PutUint32(dimsTag[0:4], miINT32)
+	binary.LittleEndian.PutUint32(dimsTag[4:8], 8)
+	binary.LittleEndian.PutUint32(dimsTag[8:12], 1)
+	binary.LittleEndian.PutUint32(dimsTag[12:16], 2)
+	content.Write(dimsTag)
+
+	// Name tag: declares 10 bytes but only 3 available
+	nameTag := make([]byte, 8)
+	binary.LittleEndian.PutUint32(nameTag[0:4], miINT8)
+	binary.LittleEndian.PutUint32(nameTag[4:8], 10) // claims 10 bytes
+	content.Write(nameTag)
+	content.Write([]byte("abc")) // only 3 bytes available
+
+	matrixTag := make([]byte, 8)
+	binary.LittleEndian.PutUint32(matrixTag[0:4], miMATRIX)
+	binary.LittleEndian.PutUint32(matrixTag[4:8], uint32(content.Len()))
+
+	var assembled bytes.Buffer
+	assembled.Write(header)
+	assembled.Write(matrixTag)
+	assembled.Write(content.Bytes())
+
+	parser, err := NewParser(&assembled)
+	if err != nil {
+		t.Fatalf("NewParser() error: %v", err)
+	}
+
+	_, err = parser.Parse()
+	if err == nil {
+		t.Error("Parse() expected error for name data read failure, got nil")
+	}
+}
+
+// TestParseMatrixContent_ImagDataReadError tests readData error for imaginary data
+// by providing a valid complex matrix but with truncated imaginary data.
+func TestParseMatrixContent_ImagDataReadError(t *testing.T) {
+	var headerBuf bytes.Buffer
+	_, _ = NewWriter(&headerBuf, "Test", "IM")
+	header := headerBuf.Bytes()[:128]
+
+	var content bytes.Buffer
+
+	// Array flags with complex bit set
+	flagsTag := make([]byte, 16)
+	binary.LittleEndian.PutUint32(flagsTag[0:4], miUINT32)
+	binary.LittleEndian.PutUint32(flagsTag[4:8], 8)
+	binary.LittleEndian.PutUint32(flagsTag[8:12], 0x0800) // complex bit
+	binary.LittleEndian.PutUint32(flagsTag[12:16], mxDOUBLE_CLASS)
+	content.Write(flagsTag)
+
+	// Dimensions
+	dimsTag := make([]byte, 16)
+	binary.LittleEndian.PutUint32(dimsTag[0:4], miINT32)
+	binary.LittleEndian.PutUint32(dimsTag[4:8], 8)
+	binary.LittleEndian.PutUint32(dimsTag[8:12], 1)
+	binary.LittleEndian.PutUint32(dimsTag[12:16], 2)
+	content.Write(dimsTag)
+
+	// Name "c" (small format)
+	nameTag := make([]byte, 8)
+	binary.LittleEndian.PutUint32(nameTag[0:4], (1<<16)|miINT8)
+	nameTag[4] = 'c'
+	content.Write(nameTag)
+
+	// Valid real data (2 doubles = 16 bytes)
+	realTag := make([]byte, 24) // 8 tag + 16 data
+	binary.LittleEndian.PutUint32(realTag[0:4], miDOUBLE)
+	binary.LittleEndian.PutUint32(realTag[4:8], 16)
+	content.Write(realTag)
+
+	// Imag tag: declares 16 bytes but only 4 available
+	imagTag := make([]byte, 8)
+	binary.LittleEndian.PutUint32(imagTag[0:4], miDOUBLE)
+	binary.LittleEndian.PutUint32(imagTag[4:8], 16) // claims 16 bytes
+	content.Write(imagTag)
+	content.Write(make([]byte, 4)) // only 4 bytes available
+
+	matrixTag := make([]byte, 8)
+	binary.LittleEndian.PutUint32(matrixTag[0:4], miMATRIX)
+	binary.LittleEndian.PutUint32(matrixTag[4:8], uint32(content.Len()))
+
+	var assembled bytes.Buffer
+	assembled.Write(header)
+	assembled.Write(matrixTag)
+	assembled.Write(content.Bytes())
+
+	parser, err := NewParser(&assembled)
+	if err != nil {
+		t.Fatalf("NewParser() error: %v", err)
+	}
+
+	_, err = parser.Parse()
+	if err == nil {
+		t.Error("Parse() expected error for imaginary data read failure, got nil")
+	}
+}
+
+// TestParse_ReadTagError tests Parse error when readTag fails with a non-EOF error.
+// This covers the error return on parser.go line 62-64.
+func TestParse_ReadTagError(t *testing.T) {
+	// Build a valid header, then add truncated data (less than 8 bytes for a tag)
+	var headerBuf bytes.Buffer
+	_, _ = NewWriter(&headerBuf, "Test", "IM")
+	header := headerBuf.Bytes()[:128]
+
+	// Add 4 bytes after header - enough to start reading but not enough for a full 8-byte tag
+	var assembled bytes.Buffer
+	assembled.Write(header)
+	assembled.Write([]byte{0x01, 0x02, 0x03, 0x04}) // partial tag
+
+	parser, err := NewParser(&assembled)
+	if err != nil {
+		t.Fatalf("NewParser() error: %v", err)
+	}
+
+	_, err = parser.Parse()
+	if err == nil {
+		t.Error("Parse() expected error for truncated tag read, got nil")
+	}
+}
+
 // TestParse_SkipData_RegularFormatWithPadding tests that skipData correctly
 // handles padding for non-8-byte-aligned data sizes.
 func TestParse_SkipData_RegularFormatWithPadding(t *testing.T) {

@@ -3,6 +3,7 @@ package v5
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"math"
 	"testing"
 
@@ -1106,6 +1107,572 @@ func TestWriteVariable_AllNumericTypes(t *testing.T) {
 				t.Errorf("Buffer size = %d, expected > 128 (header + variable data)", buf.Len())
 			}
 		})
+	}
+}
+
+// TestWriteMatrix_BigEndian writes a variable with big-endian and verifies the
+// output is non-empty and different from little-endian output.
+func TestWriteMatrix_BigEndian(t *testing.T) {
+	v := &types.Variable{
+		Name:       "bevar",
+		Dimensions: []int{1, 3},
+		DataType:   types.Double,
+		Data:       []float64{1.0, 2.0, 3.0},
+	}
+
+	// Write with big-endian
+	var beBuf bytes.Buffer
+	beWriter, err := NewWriter(&beBuf, "Test", "MI")
+	if err != nil {
+		t.Fatalf("NewWriter(MI) error: %v", err)
+	}
+	if err := beWriter.WriteVariable(v); err != nil {
+		t.Fatalf("WriteVariable(MI) error: %v", err)
+	}
+
+	// Write with little-endian
+	var leBuf bytes.Buffer
+	leWriter, err := NewWriter(&leBuf, "Test", "IM")
+	if err != nil {
+		t.Fatalf("NewWriter(IM) error: %v", err)
+	}
+	if err := leWriter.WriteVariable(v); err != nil {
+		t.Fatalf("WriteVariable(IM) error: %v", err)
+	}
+
+	// Both should produce non-empty output beyond the header
+	if beBuf.Len() <= 128 {
+		t.Errorf("Big-endian buffer size = %d, expected > 128", beBuf.Len())
+	}
+	if leBuf.Len() <= 128 {
+		t.Errorf("Little-endian buffer size = %d, expected > 128", leBuf.Len())
+	}
+
+	// The outputs should differ (different byte ordering)
+	if bytes.Equal(beBuf.Bytes(), leBuf.Bytes()) {
+		t.Error("Big-endian and little-endian outputs should differ")
+	}
+}
+
+// TestWriteHeader_BigEndian_Bytes verifies that big-endian header has "MI" at bytes 126-127
+// and that version is encoded correctly in big-endian.
+func TestWriteHeader_BigEndian_Bytes(t *testing.T) {
+	var buf bytes.Buffer
+	_, err := NewWriter(&buf, "Big Endian Test", "MI")
+	if err != nil {
+		t.Fatalf("NewWriter(MI) error: %v", err)
+	}
+
+	header := buf.Bytes()
+	if len(header) != 128 {
+		t.Fatalf("Header size = %d, want 128", len(header))
+	}
+
+	// Verify endian indicator is "MI"
+	endian := string(header[126:128])
+	if endian != "MI" {
+		t.Errorf("Endian indicator = %q, want %q", endian, "MI")
+	}
+
+	// Verify version in big-endian: 0x0100 stored as [0x01, 0x00]
+	version := binary.BigEndian.Uint16(header[124:126])
+	if version != 0x0100 {
+		t.Errorf("Version = 0x%04x, want 0x0100", version)
+	}
+}
+
+// TestEncodeData_ComplexSingle tests encoding complex single (float32) data.
+func TestEncodeData_ComplexSingle(t *testing.T) {
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf, "Test", "IM")
+	if err != nil {
+		t.Fatalf("NewWriter() error: %v", err)
+	}
+
+	v := &types.Variable{
+		Name:       "csgl",
+		Dimensions: []int{1, 2},
+		DataType:   types.Single,
+		IsComplex:  true,
+		Data: &types.NumericArray{
+			Real: []float32{1.0, 2.0},
+			Imag: []float32{3.0, 4.0},
+		},
+	}
+
+	// Encode real part
+	realEncoded, err := w.encodeData(v, false)
+	if err != nil {
+		t.Fatalf("encodeData(real) error: %v", err)
+	}
+	if len(realEncoded) == 0 {
+		t.Error("encodeData(real) returned empty result")
+	}
+
+	// Encode imaginary part
+	imagEncoded, err := w.encodeData(v, true)
+	if err != nil {
+		t.Fatalf("encodeData(imag) error: %v", err)
+	}
+	if len(imagEncoded) == 0 {
+		t.Error("encodeData(imag) returned empty result")
+	}
+}
+
+// TestEncodeMatrixContent_ComplexSingle tests full matrix content encoding for complex single.
+func TestEncodeMatrixContent_ComplexSingle(t *testing.T) {
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf, "Test", "IM")
+	if err != nil {
+		t.Fatalf("NewWriter() error: %v", err)
+	}
+
+	v := &types.Variable{
+		Name:       "csgl",
+		Dimensions: []int{1, 2},
+		DataType:   types.Single,
+		IsComplex:  true,
+		Data: &types.NumericArray{
+			Real: []float32{1.0, 2.0},
+			Imag: []float32{3.0, 4.0},
+		},
+	}
+
+	content, err := w.encodeMatrixContent(v)
+	if err != nil {
+		t.Fatalf("encodeMatrixContent() error: %v", err)
+	}
+	if len(content) == 0 {
+		t.Error("encodeMatrixContent() returned empty result")
+	}
+}
+
+// TestWriteVariable_NilVariable tests that WriteVariable with nil returns an error.
+func TestWriteVariable_NilVariable(t *testing.T) {
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf, "Test", "IM")
+	if err != nil {
+		t.Fatalf("NewWriter() error: %v", err)
+	}
+
+	// Passing nil should panic or error. Since validateVariable dereferences v,
+	// a nil variable will cause a panic. We test that it doesn't silently succeed.
+	defer func() {
+		if r := recover(); r == nil {
+			// If no panic, check that error was returned
+		}
+	}()
+
+	// This will likely panic since v.Name dereferences nil
+	// If it doesn't panic, it should return an error
+	err = w.WriteVariable(nil)
+	if err == nil {
+		t.Error("WriteVariable(nil) expected error or panic, got nil")
+	}
+}
+
+// TestEncodeArrayFlags_Sparse tests that the sparse flag bit is set correctly.
+func TestEncodeArrayFlags_Sparse(t *testing.T) {
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf, "Test", "IM")
+	if err != nil {
+		t.Fatalf("NewWriter() error: %v", err)
+	}
+
+	v := &types.Variable{
+		Name:       "sp",
+		Dimensions: []int{1, 3},
+		DataType:   types.Double,
+		Data:       []float64{1.0, 2.0, 3.0},
+		IsSparse:   true,
+	}
+
+	flags := w.encodeArrayFlags(v)
+
+	// flags should be: 8-byte tag + 8-byte data = 16 bytes
+	if len(flags) != 16 {
+		t.Fatalf("encodeArrayFlags() len = %d, want 16", len(flags))
+	}
+
+	// Read the flags data (after the 8-byte tag)
+	flagsWord := binary.LittleEndian.Uint32(flags[8:12])
+	if flagsWord&0x0400 == 0 {
+		t.Error("Sparse flag bit (0x0400) not set")
+	}
+}
+
+// TestEncodeArrayFlags_ComplexAndSparse tests that both complex and sparse bits are set.
+func TestEncodeArrayFlags_ComplexAndSparse(t *testing.T) {
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf, "Test", "IM")
+	if err != nil {
+		t.Fatalf("NewWriter() error: %v", err)
+	}
+
+	v := &types.Variable{
+		Name:       "csp",
+		Dimensions: []int{1, 2},
+		DataType:   types.Double,
+		IsComplex:  true,
+		IsSparse:   true,
+		Data: &types.NumericArray{
+			Real: []float64{1.0, 2.0},
+			Imag: []float64{3.0, 4.0},
+		},
+	}
+
+	flags := w.encodeArrayFlags(v)
+
+	// Read the flags data (after the 8-byte tag)
+	flagsWord := binary.LittleEndian.Uint32(flags[8:12])
+	if flagsWord&0x0800 == 0 {
+		t.Error("Complex flag bit (0x0800) not set")
+	}
+	if flagsWord&0x0400 == 0 {
+		t.Error("Sparse flag bit (0x0400) not set")
+	}
+}
+
+// TestWriteMatrix_BigEndian_Roundtrip writes with big-endian and verifies roundtrip parsing.
+func TestWriteMatrix_BigEndian_Roundtrip(t *testing.T) {
+	v := &types.Variable{
+		Name:       "beround",
+		Dimensions: []int{1, 4},
+		DataType:   types.Int32,
+		Data:       []int32{100, 200, 300, 400},
+	}
+
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf, "Test", "MI")
+	if err != nil {
+		t.Fatalf("NewWriter(MI) error: %v", err)
+	}
+	if err := w.WriteVariable(v); err != nil {
+		t.Fatalf("WriteVariable() error: %v", err)
+	}
+
+	// Parse back
+	parser, err := NewParser(bytes.NewReader(buf.Bytes()))
+	if err != nil {
+		t.Fatalf("NewParser() error: %v", err)
+	}
+	file, err := parser.Parse()
+	if err != nil {
+		t.Fatalf("Parse() error: %v", err)
+	}
+	if len(file.Variables) != 1 {
+		t.Fatalf("Parse() returned %d variables, want 1", len(file.Variables))
+	}
+
+	got := file.Variables[0]
+	if got.Name != "beround" {
+		t.Errorf("Name = %q, want %q", got.Name, "beround")
+	}
+
+	gotData, ok := got.Data.([]int32)
+	if !ok {
+		t.Fatalf("Data type = %T, want []int32", got.Data)
+	}
+	wantData := []int32{100, 200, 300, 400}
+	for i, want := range wantData {
+		if gotData[i] != want {
+			t.Errorf("Data[%d] = %d, want %d", i, gotData[i], want)
+		}
+	}
+}
+
+// TestWriteTag_ErrorOnWrite tests writeTag error propagation when the writer fails.
+func TestWriteTag_ErrorOnWrite(t *testing.T) {
+	fw := &failWriter{failAfter: 0} // fail immediately
+	w := &Writer{
+		w: fw,
+		header: &Header{
+			Order:           binary.LittleEndian,
+			EndianIndicator: "IM",
+			Version:         0x0100,
+		},
+	}
+
+	err := w.writeTag(miMATRIX, 100)
+	if err == nil {
+		t.Error("writeTag() expected error from failing writer, got nil")
+	}
+}
+
+// TestWriteMatrix_ErrorOnContentWrite tests error propagation when writing matrix content fails.
+func TestWriteMatrix_ErrorOnContentWrite(t *testing.T) {
+	// Writer that fails after writing the tag (8 bytes)
+	fw := &failWriter{failAfter: 8}
+	w := &Writer{
+		w: fw,
+		header: &Header{
+			Order:           binary.LittleEndian,
+			EndianIndicator: "IM",
+			Version:         0x0100,
+		},
+	}
+
+	v := &types.Variable{
+		Name:       "x",
+		Dimensions: []int{1, 2},
+		DataType:   types.Double,
+		Data:       []float64{1.0, 2.0},
+	}
+
+	err := w.writeMatrix(v)
+	if err == nil {
+		t.Error("writeMatrix() expected error from failing writer, got nil")
+	}
+}
+
+// TestWriteHeader_ErrorOnWrite tests writeHeader error propagation.
+func TestWriteHeader_ErrorOnWrite(t *testing.T) {
+	fw := &failWriter{failAfter: 0}
+	_, err := NewWriter(fw, "Test", "IM")
+	if err == nil {
+		t.Error("NewWriter() expected error from failing writer, got nil")
+	}
+}
+
+// failWriter is a writer that fails after writing a certain number of bytes.
+type failWriter struct {
+	written   int
+	failAfter int
+}
+
+func (f *failWriter) Write(p []byte) (int, error) {
+	if f.written >= f.failAfter {
+		return 0, errWriteFailed
+	}
+	n := len(p)
+	if f.written+n > f.failAfter {
+		n = f.failAfter - f.written
+	}
+	f.written += n
+	if n < len(p) {
+		return n, errWriteFailed
+	}
+	return n, nil
+}
+
+var errWriteFailed = fmt.Errorf("simulated write failure")
+
+// TestWriteMatrix_EncodeContentError tests error propagation when encodeMatrixContent
+// fails inside writeMatrix (covers the "failed to encode matrix content" return path).
+func TestWriteMatrix_EncodeContentError(t *testing.T) {
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf, "Test", "IM")
+	if err != nil {
+		t.Fatalf("NewWriter() error: %v", err)
+	}
+
+	// Variable that will fail during encodeMatrixContent because imaginary data
+	// has wrong type, causing encodeData to fail.
+	v := &types.Variable{
+		Name:       "bad",
+		Dimensions: []int{1, 2},
+		DataType:   types.Double,
+		IsComplex:  true,
+		Data: &types.NumericArray{
+			Real: []float64{1.0, 2.0},
+			Imag: []int32{3, 4}, // wrong type
+		},
+	}
+
+	err = w.writeMatrix(v)
+	if err == nil {
+		t.Error("writeMatrix() expected error for bad imaginary data type, got nil")
+	}
+	if err != nil && !contains(err.Error(), "failed to encode matrix content") {
+		t.Errorf("writeMatrix() error = %q, want containing %q", err.Error(), "failed to encode matrix content")
+	}
+}
+
+// TestWriteMatrix_WriteTagError tests error propagation when writeTag fails
+// inside writeMatrix (covers the "failed to write matrix tag" return path).
+func TestWriteMatrix_WriteTagError(t *testing.T) {
+	fw := &failWriter{failAfter: 0} // fail immediately on first write
+	w := &Writer{
+		w: fw,
+		header: &Header{
+			Order:           binary.LittleEndian,
+			EndianIndicator: "IM",
+			Version:         0x0100,
+		},
+	}
+
+	v := &types.Variable{
+		Name:       "x",
+		Dimensions: []int{1, 2},
+		DataType:   types.Double,
+		Data:       []float64{1.0, 2.0},
+	}
+
+	err := w.writeMatrix(v)
+	if err == nil {
+		t.Error("writeMatrix() expected error from failing writeTag, got nil")
+	}
+	if err != nil && !contains(err.Error(), "failed to write matrix tag") {
+		t.Errorf("writeMatrix() error = %q, want containing %q", err.Error(), "failed to write matrix tag")
+	}
+}
+
+// TestWriteMatrix_HappyPathWithPadding tests the normal path where content has non-zero
+// padding (content length is not 8-byte aligned).
+func TestWriteMatrix_HappyPathWithPadding(t *testing.T) {
+	// Uint8 with 3 elements produces content that requires padding
+	v := &types.Variable{
+		Name:       "padtest",
+		Dimensions: []int{1, 3},
+		DataType:   types.Uint8,
+		Data:       []byte{1, 2, 3},
+	}
+
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf, "Test", "IM")
+	if err != nil {
+		t.Fatalf("NewWriter() error: %v", err)
+	}
+
+	err = w.WriteVariable(v)
+	if err != nil {
+		t.Fatalf("WriteVariable() error: %v", err)
+	}
+
+	// Verify that the output length is 8-byte aligned after header
+	dataLen := buf.Len() - 128
+	if dataLen%8 != 0 {
+		t.Errorf("Data length %d is not 8-byte aligned", dataLen)
+	}
+}
+
+// TestWriteMatrix_PaddingErrorPath tests error when padding write fails.
+func TestWriteMatrix_PaddingErrorPath(t *testing.T) {
+	v := &types.Variable{
+		Name:       "p",
+		Dimensions: []int{1, 1},
+		DataType:   types.Uint8,
+		Data:       []byte{42},
+	}
+
+	// First, figure out how many bytes a successful write produces
+	var measureBuf bytes.Buffer
+	mw, _ := NewWriter(&measureBuf, "Test", "IM")
+	_ = mw.WriteVariable(v)
+	totalWritten := measureBuf.Len() - 128 // subtract header
+
+	// failWriter that fails right before the padding write would complete.
+	// The miMATRIX tag is 8 bytes, then the content, then padding.
+	// We need to fail during the padding write. The content is written in
+	// one shot, so we fail after tag (8) + content but before padding completes.
+	// Let's fail after content write but before padding.
+	// Total = tag(8) + content + padding
+	// We want to fail at: tag(8) + content (no padding room)
+	failAt := totalWritten - 1 // fail during the last byte(s) of padding
+
+	fw := &failWriter{failAfter: failAt}
+	w := &Writer{
+		w: fw,
+		header: &Header{
+			Order:           binary.LittleEndian,
+			EndianIndicator: "IM",
+			Version:         0x0100,
+		},
+	}
+
+	err := w.writeMatrix(v)
+	if err == nil {
+		t.Error("writeMatrix() expected error during padding write, got nil")
+	}
+}
+
+// TestWriteHeader_ShortWrite tests the "wrote N bytes, expected 128" error path.
+func TestWriteHeader_ShortWrite(t *testing.T) {
+	// shortWriter writes only partial data without error
+	sw := &shortWriter{maxBytes: 64}
+	w := &Writer{
+		w: sw,
+		header: &Header{
+			Description:     "Test",
+			Version:         0x0100,
+			EndianIndicator: "IM",
+			Order:           binary.LittleEndian,
+		},
+	}
+
+	err := w.writeHeader()
+	if err == nil {
+		t.Error("writeHeader() expected error for short write, got nil")
+	}
+	if err != nil && !contains(err.Error(), "expected 128") {
+		t.Errorf("writeHeader() error = %q, want containing %q", err.Error(), "expected 128")
+	}
+}
+
+// shortWriter is a writer that writes only up to maxBytes and reports success.
+type shortWriter struct {
+	maxBytes int
+	written  int
+}
+
+func (s *shortWriter) Write(p []byte) (int, error) {
+	remaining := s.maxBytes - s.written
+	if remaining <= 0 {
+		return 0, nil // no error, but no bytes written
+	}
+	n := len(p)
+	if n > remaining {
+		n = remaining
+	}
+	s.written += n
+	return n, nil
+}
+
+// TestEncodeMatrixContent_RealDataError tests error propagation when real data encoding fails.
+func TestEncodeMatrixContent_RealDataError(t *testing.T) {
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf, "Test", "IM")
+	if err != nil {
+		t.Fatalf("NewWriter() error: %v", err)
+	}
+
+	// Variable where the data slice type does not match DataType
+	v := &types.Variable{
+		Name:       "bad",
+		Dimensions: []int{1, 2},
+		DataType:   types.Double,
+		Data:       []int32{1, 2}, // wrong type, should be []float64
+	}
+
+	_, err = w.encodeMatrixContent(v)
+	if err == nil {
+		t.Error("encodeMatrixContent() expected error for wrong real data type, got nil")
+	}
+}
+
+// TestEncodeMatrixContent_ImagError tests error propagation when imaginary data encoding fails.
+func TestEncodeMatrixContent_ImagError(t *testing.T) {
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf, "Test", "IM")
+	if err != nil {
+		t.Fatalf("NewWriter() error: %v", err)
+	}
+
+	// Complex variable where real part is valid but imaginary part has wrong type
+	v := &types.Variable{
+		Name:       "bad",
+		Dimensions: []int{1, 2},
+		DataType:   types.Double,
+		IsComplex:  true,
+		Data: &types.NumericArray{
+			Real: []float64{1.0, 2.0},
+			Imag: []int32{3, 4}, // wrong type for imaginary part
+		},
+	}
+
+	_, err = w.encodeMatrixContent(v)
+	if err == nil {
+		t.Error("encodeMatrixContent() expected error for wrong imag data type, got nil")
 	}
 }
 

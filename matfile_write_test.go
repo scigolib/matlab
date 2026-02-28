@@ -340,6 +340,365 @@ func TestRoundTrip_v73_MultipleVariables(t *testing.T) {
 	_ = writer.Close()
 }
 
+// TestCreate_v5_WriteVariable tests writing a double variable via v5.
+func TestCreate_v5_WriteVariable(t *testing.T) {
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "test_v5_write_double.mat")
+
+	writer, err := Create(tmpFile, Version5)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	v := &types.Variable{
+		Name:       "data",
+		Dimensions: []int{3},
+		DataType:   types.Double,
+		Data:       []float64{1.0, 2.0, 3.0},
+	}
+
+	if err := writer.WriteVariable(v); err != nil {
+		t.Fatalf("WriteVariable() error = %v", err)
+	}
+
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+
+	// Verify file was created and is not empty.
+	info, err := os.Stat(tmpFile)
+	if err != nil {
+		t.Fatalf("Stat() error = %v", err)
+	}
+	if info.Size() <= 128 {
+		t.Errorf("File size = %d, want > 128 (header + data)", info.Size())
+	}
+}
+
+// TestCreate_v5_WriteVariable_Int32 tests writing int32 data via v5.
+func TestCreate_v5_WriteVariable_Int32(t *testing.T) {
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "test_v5_write_int32.mat")
+
+	writer, err := Create(tmpFile, Version5)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	v := &types.Variable{
+		Name:       "values",
+		Dimensions: []int{4},
+		DataType:   types.Int32,
+		Data:       []int32{10, 20, 30, 40},
+	}
+
+	if err := writer.WriteVariable(v); err != nil {
+		t.Fatalf("WriteVariable() error = %v", err)
+	}
+
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+}
+
+// TestCreate_v5_WriteVariable_AllTypes tests writing all numeric types via v5.
+func TestCreate_v5_WriteVariable_AllTypes(t *testing.T) {
+	tests := []struct {
+		name     string
+		dataType types.DataType
+		data     interface{}
+	}{
+		{"double", types.Double, []float64{1.1, 2.2, 3.3}},
+		{"single", types.Single, []float32{1.1, 2.2, 3.3}},
+		{"int8", types.Int8, []int8{1, 2, 3}},
+		{"uint8", types.Uint8, []byte{1, 2, 3}},
+		{"int16", types.Int16, []int16{10, 20, 30}},
+		{"uint16", types.Uint16, []uint16{10, 20, 30}},
+		{"int32", types.Int32, []int32{100, 200, 300}},
+		{"uint32", types.Uint32, []uint32{100, 200, 300}},
+		{"int64", types.Int64, []int64{1000, 2000, 3000}},
+		{"uint64", types.Uint64, []uint64{1000, 2000, 3000}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			tmpFile := filepath.Join(tmpDir, "test_v5_"+tt.name+".mat")
+
+			writer, err := Create(tmpFile, Version5)
+			if err != nil {
+				t.Fatalf("Create() error = %v", err)
+			}
+
+			v := &types.Variable{
+				Name:       "data",
+				Dimensions: []int{3},
+				DataType:   tt.dataType,
+				Data:       tt.data,
+			}
+
+			if err := writer.WriteVariable(v); err != nil {
+				t.Fatalf("WriteVariable() error = %v", err)
+			}
+
+			if err := writer.Close(); err != nil {
+				t.Fatalf("Close() error = %v", err)
+			}
+		})
+	}
+}
+
+// TestCreate_v5_WriteVariable_Complex tests writing complex data via v5.
+func TestCreate_v5_WriteVariable_Complex(t *testing.T) {
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "test_v5_complex.mat")
+
+	writer, err := Create(tmpFile, Version5)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	v := &types.Variable{
+		Name:       "z",
+		IsComplex:  true,
+		Dimensions: []int{3},
+		DataType:   types.Double,
+		Data: &types.NumericArray{
+			Real: []float64{1.0, 2.0, 3.0},
+			Imag: []float64{4.0, 5.0, 6.0},
+		},
+	}
+
+	if err := writer.WriteVariable(v); err != nil {
+		t.Fatalf("WriteVariable() error = %v", err)
+	}
+
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+
+	// Verify file exists and has data beyond header.
+	info, err := os.Stat(tmpFile)
+	if err != nil {
+		t.Fatalf("Stat() error = %v", err)
+	}
+	if info.Size() <= 128 {
+		t.Errorf("File size = %d, want > 128 (header + complex data)", info.Size())
+	}
+}
+
+// TestMatFileWriter_WriteVariable_NoWriterInitialized tests the error path
+// when MatFileWriter has no underlying writer set.
+func TestMatFileWriter_WriteVariable_NoWriterInitialized(t *testing.T) {
+	// Construct a writer with no v5 or v73 backend.
+	w := &MatFileWriter{
+		filename: "dummy.mat",
+		version:  Version73,
+		// v73writer is nil
+	}
+
+	v := &types.Variable{
+		Name:       "x",
+		Dimensions: []int{1},
+		DataType:   types.Double,
+		Data:       []float64{1.0},
+	}
+
+	err := w.WriteVariable(v)
+	if err == nil {
+		t.Fatal("WriteVariable() expected error for nil v73 writer, got nil")
+	}
+
+	// Also test v5 path with nil writer.
+	w2 := &MatFileWriter{
+		filename: "dummy.mat",
+		version:  Version5,
+		// v5writer is nil
+	}
+
+	err = w2.WriteVariable(v)
+	if err == nil {
+		t.Fatal("WriteVariable() expected error for nil v5 writer, got nil")
+	}
+}
+
+// TestMatFileWriter_WriteVariable_UnsupportedVersion tests the default branch.
+func TestMatFileWriter_WriteVariable_UnsupportedVersion(t *testing.T) {
+	w := &MatFileWriter{
+		filename: "dummy.mat",
+		version:  Version(99),
+	}
+
+	v := &types.Variable{
+		Name:       "x",
+		Dimensions: []int{1},
+		DataType:   types.Double,
+		Data:       []float64{1.0},
+	}
+
+	err := w.WriteVariable(v)
+	if err == nil {
+		t.Fatal("WriteVariable() expected error for unsupported version, got nil")
+	}
+}
+
+// TestMatFileWriter_Close_AlreadyClosed tests that closing twice is safe.
+// First close nils the writer, second close returns nil.
+func TestMatFileWriter_Close_AlreadyClosed(t *testing.T) {
+	// Test with v73.
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "test_close_twice_v73.mat")
+
+	writer, err := Create(tmpFile, Version73)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	if err := writer.Close(); err != nil {
+		t.Errorf("First Close() error = %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Errorf("Second Close() error = %v, want nil", err)
+	}
+
+	// Test with v5.
+	tmpFile2 := filepath.Join(tmpDir, "test_close_twice_v5.mat")
+
+	writer2, err := Create(tmpFile2, Version5)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	if err := writer2.Close(); err != nil {
+		t.Errorf("First Close() error = %v", err)
+	}
+	if err := writer2.Close(); err != nil {
+		t.Errorf("Second Close() error = %v, want nil", err)
+	}
+}
+
+// TestMatFileWriter_Close_UnsupportedVersion tests close with invalid version.
+func TestMatFileWriter_Close_UnsupportedVersion(t *testing.T) {
+	w := &MatFileWriter{
+		filename: "dummy.mat",
+		version:  Version(99),
+	}
+
+	// Should return nil (default branch).
+	if err := w.Close(); err != nil {
+		t.Errorf("Close() error = %v, want nil for unsupported version", err)
+	}
+}
+
+// TestCreate_v73_InvalidPath tests creating v73 file in a non-existent directory.
+func TestCreate_v73_InvalidPath(t *testing.T) {
+	_, err := Create("/nonexistent/dir/test.mat", Version73)
+	if err == nil {
+		t.Fatal("Create() expected error for invalid path, got nil")
+	}
+}
+
+// TestCreate_v5_InvalidPath tests creating v5 file in a non-existent directory.
+func TestCreate_v5_InvalidPath(t *testing.T) {
+	_, err := Create("/nonexistent/dir/test.mat", Version5)
+	if err == nil {
+		t.Fatal("Create() expected error for invalid path, got nil")
+	}
+}
+
+// TestCreate_v5_Close tests creating a v5 file, closing it, and verifying
+// the file exists on disk with a valid header.
+func TestCreate_v5_Close(t *testing.T) {
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "test_v5_close.mat")
+
+	writer, err := Create(tmpFile, Version5)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+
+	// File should exist with at least a 128-byte header.
+	info, err := os.Stat(tmpFile)
+	if err != nil {
+		t.Fatalf("Stat() error = %v", err)
+	}
+	if info.Size() < 128 {
+		t.Errorf("File size = %d, want >= 128", info.Size())
+	}
+}
+
+// TestRoundTrip_v5_SimpleDouble tests the full round-trip: write v5 then read back.
+func TestRoundTrip_v5_SimpleDouble(t *testing.T) {
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "test_rt_v5_double.mat")
+
+	// Write.
+	writer, err := Create(tmpFile, Version5)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	original := &types.Variable{
+		Name:       "data",
+		Dimensions: []int{3},
+		DataType:   types.Double,
+		Data:       []float64{1.0, 2.0, 3.0},
+	}
+
+	if err := writer.WriteVariable(original); err != nil {
+		t.Fatalf("WriteVariable() error = %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+
+	// Read back.
+	file, err := os.Open(tmpFile)
+	if err != nil {
+		t.Fatalf("Failed to open: %v", err)
+	}
+	defer file.Close()
+
+	matFile, err := Open(file)
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+
+	if matFile.Version != "5.0" {
+		t.Errorf("Version = %q, want %q", matFile.Version, "5.0")
+	}
+
+	if len(matFile.Variables) != 1 {
+		t.Fatalf("Variables count = %d, want 1", len(matFile.Variables))
+	}
+
+	v := matFile.Variables[0]
+	if v.Name != "data" {
+		t.Errorf("Name = %q, want %q", v.Name, "data")
+	}
+	if v.DataType != types.Double {
+		t.Errorf("DataType = %v, want %v", v.DataType, types.Double)
+	}
+
+	data, ok := v.Data.([]float64)
+	if !ok {
+		t.Fatalf("Data type = %T, want []float64", v.Data)
+	}
+	expected := []float64{1.0, 2.0, 3.0}
+	if len(data) != len(expected) {
+		t.Fatalf("Data length = %d, want %d", len(data), len(expected))
+	}
+	for i, want := range expected {
+		if data[i] != want {
+			t.Errorf("Data[%d] = %v, want %v", i, data[i], want)
+		}
+	}
+}
+
 // TestRoundTrip_v73_Complex tests writing and reading complex numbers.
 // This verifies that Issue 3 (v73 complex reading) is fixed.
 //
