@@ -1,3 +1,25 @@
+## [0.3.5] - 2026-02-28
+
+### Changed
+- **HDF5 dependency**: Updated from v0.13.5 to v0.13.7
+- **Test coverage**: Improved from 51% to 92.8% (awesome-go >= 90% requirement)
+- **README**: Added Codecov badge
+- No breaking changes
+
+### Added
+- `internal/v5/parser_test.go` - 35 roundtrip and error path tests for v5 parser
+- `internal/v5/compressed_test.go` - 5 tests for zlib decompression
+- `internal/v73/adapter_test.go` - 9 tests for HDF5-to-MATLAB conversion
+- `internal/v73/parser_test.go` - 8 tests for v73 reader path
+- `types/array_test.go` - 8 tests for NumericArray and CharArray
+
+### Quality
+- Tests: 228 passing, 5 skipped (known HDF5 library limitations)
+- Coverage by package: v5 98.5%, types 100%, root 95.8%, v73 76.1%
+- Combined library coverage: 92.8%
+
+---
+
 ## [0.3.4] - 2026-02-02
 
 ### Changed

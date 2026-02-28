@@ -6,6 +6,7 @@
 [![Go Version](https://img.shields.io/badge/Go-1.25%2B-00ADD8?style=flat-square&logo=go)](https://go.dev/dl/)
 [![Go Reference](https://pkg.go.dev/badge/github.com/scigolib/matlab.svg)](https://pkg.go.dev/github.com/scigolib/matlab)
 [![GitHub Actions](https://img.shields.io/github/actions/workflow/status/scigolib/matlab/test.yml?branch=main&style=flat-square&logo=github-actions&label=CI)](https://github.com/scigolib/matlab/actions)
+[![Codecov](https://img.shields.io/codecov/c/github/scigolib/matlab?style=flat-square&logo=codecov)](https://codecov.io/gh/scigolib/matlab)
 [![Go Report Card](https://goreportcard.com/badge/github.com/scigolib/matlab?style=flat-square)](https://goreportcard.com/report/github.com/scigolib/matlab)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/scigolib/matlab?style=flat-square&logo=github)](https://github.com/scigolib/matlab/stargazers)
