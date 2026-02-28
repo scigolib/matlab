@@ -1,4 +1,4 @@
 ignore:
-  - "cmd/**/*"
-  - "examples/**/*"
-  - "scripts/**/*"
+  - "cmd"
+  - "examples"
+  - "scripts"
