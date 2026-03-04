@@ -2,6 +2,8 @@
 
 ### Changed
 - **HDF5 dependency**: Updated from v0.13.7 to v0.13.8
+- **CI**: Removed duplicate workflow runs for feature/hotfix/release branches
+- **README**: Updated coverage info (92.8%)
 - No breaking changes
 
 ---

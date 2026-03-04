@@ -7,21 +7,15 @@ name: Tests
 # - Depends on github.com/scigolib/hdf5 for v7.3+ format support
 #
 # Branch Strategy (Git Flow):
-# - feature/** branches: Development work
-# - release/** branches: Pre-release testing (test here BEFORE merging to main)
-# - hotfix/** branches: Critical bug fixes
-# - develop branch: Integration branch
-# - main branch: Production-ready code only (protected)
-# - Pull requests: Must pass all tests before merge
+# - push: main/develop only (post-merge verification)
+# - pull_request: main/develop (pre-merge CI, covers feature/release/hotfix branches)
+# - This avoids duplicate CI runs when pushing a branch AND opening a PR
 
 on:
   push:
     branches:
       - main
       - develop
-      - 'feature/**'
-      - 'release/**'
-      - 'hotfix/**'
   pull_request:
     branches:
       - main
