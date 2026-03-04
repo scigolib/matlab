@@ -336,7 +336,7 @@ Contributions are welcome! This is a stable project and we'd love your help.
 - Test MATLAB/Octave compatibility with real-world files
 - Add compression support for v5/v7.3 writers
 - Implement structures and cell arrays writing
-- Improve test coverage (current: 85.4%, target: 90%+)
+- Improve test coverage (current: 92.8%)
 
 ---
 
@@ -387,7 +387,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **Status**: ✅ **STABLE** - Production-ready read and write support for both v5 and v7.3 formats!
-**Last Updated**: 2025-11-21
+**Last Updated**: 2026-03-04
 
 **Ready for**: Production use, testing, feedback, and real-world usage
 **Stable API**: Minor API changes may occur in 0.x versions, major stability expected

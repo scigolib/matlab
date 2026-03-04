@@ -1,3 +1,13 @@
+## [0.3.6] - 2026-03-04
+
+### Changed
+- **HDF5 dependency**: Updated from v0.13.7 to v0.13.8
+- **CI**: Removed duplicate workflow runs for feature/hotfix/release branches
+- **README**: Updated coverage info (92.8%)
+- No breaking changes
+
+---
+
 ## [0.3.5] - 2026-02-28
 
 ### Changed
