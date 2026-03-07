@@ -123,7 +123,7 @@ func (p *Parser) convertData(data []byte, dataType, _ uint32) interface{} {
 		}
 		result := make([]int16, count)
 		for i := 0; i < count; i++ {
-			result[i] = int16(p.Header.Order.Uint16(data[i*2 : (i+1)*2])) //nolint:gosec // MATLAB format conversion
+			result[i] = int16(p.Header.Order.Uint16(data[i*2 : (i+1)*2]))
 		}
 		return result
 
@@ -145,7 +145,7 @@ func (p *Parser) convertData(data []byte, dataType, _ uint32) interface{} {
 		}
 		result := make([]int32, count)
 		for i := 0; i < count; i++ {
-			result[i] = int32(p.Header.Order.Uint32(data[i*4 : (i+1)*4])) //nolint:gosec // MATLAB format conversion
+			result[i] = int32(p.Header.Order.Uint32(data[i*4 : (i+1)*4]))
 		}
 		return result
 
@@ -167,7 +167,7 @@ func (p *Parser) convertData(data []byte, dataType, _ uint32) interface{} {
 		}
 		result := make([]int64, count)
 		for i := 0; i < count; i++ {
-			result[i] = int64(p.Header.Order.Uint64(data[i*8 : (i+1)*8])) //nolint:gosec // MATLAB format conversion
+			result[i] = int64(p.Header.Order.Uint64(data[i*8 : (i+1)*8]))
 		}
 		return result
 

@@ -193,7 +193,6 @@ func (w *Writer) writeMatrix(v *types.Variable) error {
 	}
 
 	// Step 2: Write miMATRIX tag (8 bytes)
-	//nolint:gosec // G115: Content length is from encoded buffer, safe conversion
 	if err := w.writeTag(miMATRIX, uint32(len(content))); err != nil {
 		return fmt.Errorf("failed to write matrix tag: %w", err)
 	}
@@ -434,7 +433,6 @@ func (w *Writer) encodeData(v *types.Variable, imaginary bool) ([]byte, error) {
 // Small format is not used for matrix sub-elements to maintain compatibility
 // with the parser's readData implementation.
 func (w *Writer) wrapInTag(dataType uint32, data []byte) []byte {
-	//nolint:gosec // G115: Data length is bounded by actual data size, safe conversion
 	size := uint32(len(data))
 
 	// Regular format: tag (8 bytes) + data + padding to 8-byte boundary

@@ -1,3 +1,13 @@
+## [0.3.7] - 2026-03-07
+
+### Changed
+- **HDF5 dependency**: Updated from v0.13.8 to v0.13.10
+- **Linter config**: Excluded gosec G115 globally (intentional signed/unsigned conversions for MATLAB binary format)
+- Removed stale `//nolint:gosec` inline directives from types.go and writer.go
+- No breaking changes
+
+---
+
 ## [0.3.6] - 2026-03-04
 
 ### Changed
