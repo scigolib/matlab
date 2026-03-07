@@ -71,6 +71,12 @@ linters:
       disable:
         - fieldalignment
 
+    gosec:
+      # Exclude G115 (integer overflow conversion) - intentional signed/unsigned
+      # conversions are required for MATLAB binary format serialization.
+      excludes:
+        - G115
+
     gocyclo:
       # Lower threshold for production code
       min-complexity: 15
