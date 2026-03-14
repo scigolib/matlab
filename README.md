@@ -387,7 +387,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **Status**: ✅ **STABLE** - Production-ready read and write support for both v5 and v7.3 formats!
-**Last Updated**: 2026-03-07
+**Last Updated**: 2026-03-14
 
 **Ready for**: Production use, testing, feedback, and real-world usage
 **Stable API**: Minor API changes may occur in 0.x versions, major stability expected

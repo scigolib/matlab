@@ -1,3 +1,11 @@
+## [0.3.8] - 2026-03-14
+
+### Changed
+- **HDF5 dependency**: Updated from v0.13.10 to v0.13.11
+- No breaking changes
+
+---
+
 ## [0.3.7] - 2026-03-07
 
 ### Changed
