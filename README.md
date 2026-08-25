@@ -395,3 +395,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 *Built with ❤️ by the SciGoLib community*
+
+
+## Star History
+
+<a href="https://starhistory.io">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.starhistory.io/png?repos=scigolib/matlab&style=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.starhistory.io/png?repos=scigolib/matlab&style=professional" />
+   <img alt="Star History Chart" src="https://api.starhistory.io/png?repos=scigolib/matlab" width="800" />
+ </picture>
+</a>
