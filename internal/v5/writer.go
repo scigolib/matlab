@@ -82,6 +82,15 @@ func NewWriter(w io.Writer, description, endian string) (*Writer, error) {
 // sub-elements for array flags, dimensions, name, and data. Complex numbers
 // are written with separate real and imaginary data sub-elements.
 //
+// Dimension promotion: MATLAB requires at least 2 dimensions for all arrays.
+// This method automatically promotes dimensions before writing:
+//   - [] (empty) -> [1,1] (scalar)
+//   - [N] (1-D)  -> [N,1] (column vector, MATLAB convention)
+//   - [N,M,...] (2-D or higher) -> unchanged
+//
+// The caller's Variable.Dimensions field is not modified; promotion is applied
+// only to the data written into the file.
+//
 // Parameters:
 //   - v: Variable to write (must not be nil)
 //
@@ -93,13 +102,44 @@ func NewWriter(w io.Writer, description, endian string) (*Writer, error) {
 //   - Complex numbers (use types.NumericArray with Real/Imag)
 //   - Multi-dimensional arrays
 func (w *Writer) WriteVariable(v *types.Variable) error {
+	// Promote 1-D dimensions to at least 2-D before validation and encoding.
+	// A shallow copy is used so the caller's slice is never mutated.
+	promoted := w.promoteDimensions(v)
+
 	// Validate variable
-	if err := w.validateVariable(v); err != nil {
+	if err := w.validateVariable(promoted); err != nil {
 		return fmt.Errorf("invalid variable: %w", err)
 	}
 
 	// Write as miMATRIX data element
-	return w.writeMatrix(v)
+	return w.writeMatrix(promoted)
+}
+
+// promoteDimensions returns a shallow copy of v with dimensions guaranteed to
+// be at least 2-D, following MATLAB array conventions:
+//
+//   - []      -> [1,1]  (scalar: no dimensions given)
+//   - [N]     -> [N,1]  (column vector: MATLAB default for 1-D)
+//   - [N,M,…] -> [N,M,…] (unchanged for 2-D or higher)
+//
+// The original Variable is never mutated; only the Dimensions field of the
+// returned copy differs from the original when promotion is needed.
+func (w *Writer) promoteDimensions(v *types.Variable) *types.Variable {
+	switch len(v.Dimensions) {
+	case 0:
+		// Scalar with no explicit dimensions -> [1,1]
+		promoted := *v
+		promoted.Dimensions = []int{1, 1}
+		return &promoted
+	case 1:
+		// 1-D vector -> promote to column vector [N,1]
+		promoted := *v
+		promoted.Dimensions = []int{v.Dimensions[0], 1}
+		return &promoted
+	default:
+		// 2-D or higher: return the original unchanged
+		return v
+	}
 }
 
 // validateVariable checks if variable is valid for v5 format.

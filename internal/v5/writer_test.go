@@ -486,15 +486,15 @@ func TestWriteVariable(t *testing.T) {
 			errMsg:  "variable name too long",
 		},
 		{
-			name: "no dimensions",
+			name: "no dimensions (scalar promotion to [1,1])",
 			variable: &types.Variable{
 				Name:       "F",
 				Dimensions: []int{},
 				DataType:   types.Double,
 				Data:       []float64{1.0},
 			},
-			wantErr: true,
-			errMsg:  "dimensions are required",
+			// Empty dimensions are promoted to [1,1] (scalar) before validation.
+			wantErr: false,
 		},
 		{
 			name: "invalid dimension",
@@ -1671,6 +1671,253 @@ func TestEncodeMatrixContent_ImagError(t *testing.T) {
 	_, err = w.encodeMatrixContent(v)
 	if err == nil {
 		t.Error("encodeMatrixContent() expected error for wrong imag data type, got nil")
+	}
+}
+
+// TestPromoteDimensions verifies that promoteDimensions applies MATLAB 2-D minimum
+// convention without mutating the original Variable.
+//
+//nolint:gocognit // Table-driven test with per-element dimension and mutation checks
+func TestPromoteDimensions(t *testing.T) {
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf, "Test", "IM")
+	if err != nil {
+		t.Fatalf("NewWriter() error: %v", err)
+	}
+
+	tests := []struct {
+		name    string
+		input   []int
+		wantDim []int
+	}{
+		{
+			name:    "empty dims promoted to scalar [1,1]",
+			input:   []int{},
+			wantDim: []int{1, 1},
+		},
+		{
+			name:    "1D [5] promoted to column vector [5,1]",
+			input:   []int{5},
+			wantDim: []int{5, 1},
+		},
+		{
+			name:    "1D [1] promoted to [1,1]",
+			input:   []int{1},
+			wantDim: []int{1, 1},
+		},
+		{
+			name:    "2D [2,3] unchanged",
+			input:   []int{2, 3},
+			wantDim: []int{2, 3},
+		},
+		{
+			name:    "3D [2,3,4] unchanged",
+			input:   []int{2, 3, 4},
+			wantDim: []int{2, 3, 4},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			original := make([]int, len(tt.input))
+			copy(original, tt.input)
+
+			v := &types.Variable{
+				Name:       "x",
+				Dimensions: tt.input,
+				DataType:   types.Double,
+				Data:       []float64{1.0},
+			}
+
+			promoted := w.promoteDimensions(v)
+
+			// Verify promoted dimensions
+			if len(promoted.Dimensions) != len(tt.wantDim) {
+				t.Errorf("promoted dims len = %d, want %d", len(promoted.Dimensions), len(tt.wantDim))
+				return
+			}
+			for i, d := range tt.wantDim {
+				if promoted.Dimensions[i] != d {
+					t.Errorf("promoted.Dimensions[%d] = %d, want %d", i, promoted.Dimensions[i], d)
+				}
+			}
+
+			// Original must never be mutated
+			if len(v.Dimensions) != len(original) {
+				t.Errorf("original dims mutated: len = %d, want %d", len(v.Dimensions), len(original))
+				return
+			}
+			for i, d := range original {
+				if v.Dimensions[i] != d {
+					t.Errorf("original.Dimensions[%d] mutated: = %d, want %d", i, v.Dimensions[i], d)
+				}
+			}
+		})
+	}
+}
+
+// TestWriteVariable_1D_DimPromotion verifies that 1D dimensions are written as
+// [N,1] in the file and that scalars with empty dims are written as [1,1].
+//
+//nolint:gocognit // Table-driven test with binary-level dimension verification
+func TestWriteVariable_1D_DimPromotion(t *testing.T) {
+	tests := []struct {
+		name      string
+		inputDims []int
+		wantDims  []int // expected dimensions in the written binary
+		data      []float64
+		expectErr bool
+	}{
+		{
+			name:      "1D [5] written as [5,1]",
+			inputDims: []int{5},
+			wantDims:  []int{5, 1},
+			data:      []float64{1, 2, 3, 4, 5},
+		},
+		{
+			name:      "1D [3] written as [3,1]",
+			inputDims: []int{3},
+			wantDims:  []int{3, 1},
+			data:      []float64{10, 20, 30},
+		},
+		{
+			name:      "scalar [] written as [1,1]",
+			inputDims: []int{},
+			wantDims:  []int{1, 1},
+			data:      []float64{42},
+		},
+		{
+			name:      "2D [2,3] unchanged",
+			inputDims: []int{2, 3},
+			wantDims:  []int{2, 3},
+			data:      []float64{1, 2, 3, 4, 5, 6},
+		},
+		{
+			name:      "3D [2,2,2] unchanged",
+			inputDims: []int{2, 2, 2},
+			wantDims:  []int{2, 2, 2},
+			data:      []float64{1, 2, 3, 4, 5, 6, 7, 8},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			w, err := NewWriter(&buf, "Test", "IM")
+			if err != nil {
+				t.Fatalf("NewWriter() error: %v", err)
+			}
+
+			v := &types.Variable{
+				Name:       "vec",
+				Dimensions: tt.inputDims,
+				DataType:   types.Double,
+				Data:       tt.data,
+			}
+
+			if err := w.WriteVariable(v); err != nil {
+				if tt.expectErr {
+					return
+				}
+				t.Fatalf("WriteVariable() unexpected error: %v", err)
+			}
+
+			// Round-trip: parse back and check dimensions
+			parser, err := NewParser(bytes.NewReader(buf.Bytes()))
+			if err != nil {
+				t.Fatalf("NewParser() error: %v", err)
+			}
+			file, err := parser.Parse()
+			if err != nil {
+				t.Fatalf("Parse() error: %v", err)
+			}
+			if len(file.Variables) != 1 {
+				t.Fatalf("Parse() returned %d variables, want 1", len(file.Variables))
+			}
+
+			got := file.Variables[0]
+			if len(got.Dimensions) != len(tt.wantDims) {
+				t.Errorf("parsed dims len = %d, want %d (dims = %v)", len(got.Dimensions), len(tt.wantDims), got.Dimensions)
+				return
+			}
+			for i, d := range tt.wantDims {
+				if got.Dimensions[i] != d {
+					t.Errorf("parsed Dimensions[%d] = %d, want %d", i, got.Dimensions[i], d)
+				}
+			}
+
+			// Verify original variable dims not mutated
+			if len(v.Dimensions) != len(tt.inputDims) {
+				t.Errorf("original dims mutated: len = %d, want %d", len(v.Dimensions), len(tt.inputDims))
+			}
+		})
+	}
+}
+
+// TestWriteVariable_1D_Roundtrip tests that a 1D vector written with dims [N]
+// is read back as [N,1] with all data values intact.
+func TestWriteVariable_1D_Roundtrip(t *testing.T) {
+	input := []float64{1.5, 2.5, 3.5, 4.5, 5.5}
+
+	var buf bytes.Buffer
+	w, err := NewWriter(&buf, "Test", "IM")
+	if err != nil {
+		t.Fatalf("NewWriter() error: %v", err)
+	}
+
+	v := &types.Variable{
+		Name:       "vec1d",
+		Dimensions: []int{5}, // 1D, should be promoted to [5,1]
+		DataType:   types.Double,
+		Data:       input,
+	}
+
+	if err := w.WriteVariable(v); err != nil {
+		t.Fatalf("WriteVariable() error: %v", err)
+	}
+
+	parser, err := NewParser(bytes.NewReader(buf.Bytes()))
+	if err != nil {
+		t.Fatalf("NewParser() error: %v", err)
+	}
+	file, err := parser.Parse()
+	if err != nil {
+		t.Fatalf("Parse() error: %v", err)
+	}
+	if len(file.Variables) != 1 {
+		t.Fatalf("Parse() returned %d variables, want 1", len(file.Variables))
+	}
+
+	got := file.Variables[0]
+
+	// Verify name
+	if got.Name != "vec1d" {
+		t.Errorf("Name = %q, want %q", got.Name, "vec1d")
+	}
+
+	// Verify dimensions: [5] was promoted to [5,1]
+	wantDims := []int{5, 1}
+	if len(got.Dimensions) != len(wantDims) {
+		t.Fatalf("Dimensions len = %d, want %d (dims = %v)", len(got.Dimensions), len(wantDims), got.Dimensions)
+	}
+	for i, d := range wantDims {
+		if got.Dimensions[i] != d {
+			t.Errorf("Dimensions[%d] = %d, want %d", i, got.Dimensions[i], d)
+		}
+	}
+
+	// Verify data values
+	gotData, ok := got.Data.([]float64)
+	if !ok {
+		t.Fatalf("Data type = %T, want []float64", got.Data)
+	}
+	if len(gotData) != len(input) {
+		t.Fatalf("Data len = %d, want %d", len(gotData), len(input))
+	}
+	for i, want := range input {
+		if gotData[i] != want {
+			t.Errorf("Data[%d] = %v, want %v", i, gotData[i], want)
+		}
 	}
 }
 
