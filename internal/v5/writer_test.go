@@ -308,20 +308,20 @@ func TestWrapInTag(t *testing.T) {
 		wantPadding int
 	}{
 		{
-			name:        "1 byte - uses regular format",
+			name:        "1 byte - uses SDE format",
 			dataType:    miUINT8,
 			data:        []byte{42},
-			wantSize:    16, // 8 (tag) + 1 (data) + 7 (padding)
-			wantSmall:   false,
-			wantPadding: 7,
+			wantSize:    8, // SDE: packed tag + data = 8 bytes total
+			wantSmall:   true,
+			wantPadding: 0,
 		},
 		{
-			name:        "4 bytes - uses regular format",
+			name:        "4 bytes - uses SDE format",
 			dataType:    miINT32,
 			data:        []byte{1, 2, 3, 4},
-			wantSize:    16, // 8 (tag) + 4 (data) + 4 (padding)
-			wantSmall:   false,
-			wantPadding: 4,
+			wantSize:    8, // SDE: packed tag + data = 8 bytes total
+			wantSmall:   true,
+			wantPadding: 0,
 		},
 		{
 			name:        "regular format - 5 bytes",

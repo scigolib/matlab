@@ -468,24 +468,52 @@ func (w *Writer) encodeData(v *types.Variable, imaginary bool) ([]byte, error) {
 
 // wrapInTag wraps data in a data element tag.
 //
-// Always uses regular format (8-byte tag + N-byte data + padding).
-// Small format is not used for matrix sub-elements to maintain compatibility
-// with the parser's readData implementation.
+// Uses Small Data Element (SDE) format when data fits in 4 bytes (size 1-4).
+// SDE packs the tag and data into exactly 8 bytes, saving 8+ bytes compared to
+// regular format for small sub-elements like variable names and single dimensions.
+//
+// SDE format (8 bytes total):
+//
+//	bytes 0-3: packed uint32 = (size << 16) | dataType
+//	bytes 4-7: data bytes, zero-padded to 4 bytes
+//
+// Regular format (8-byte tag + N bytes data + padding to 8-byte boundary):
+//
+//	bytes 0-3: dataType
+//	bytes 4-7: size
+//	bytes 8+:  data + zero padding
+//
+// The MAT-file v5 reader (readTag) detects SDE by checking that the upper 16
+// bits of the first uint32 are non-zero and in the range [1, 4]. This writer
+// packs exactly that: upper 16 bits = size, lower 16 bits = dataType. An empty
+// data slice always uses regular format (upper 16 bits = 0, no SDE ambiguity).
 func (w *Writer) wrapInTag(dataType uint32, data []byte) []byte {
-	size := uint32(len(data))
+	size := len(data)
 
-	// Regular format: tag (8 bytes) + data + padding to 8-byte boundary
-	padding := (8 - size%8) % 8
-	buf := make([]byte, 8+size+padding)
+	// Small Data Element format: data fits in 4 bytes (size 1-4).
+	// Produces exactly 8 bytes total, vs 16+ bytes for regular format.
+	if size > 0 && size <= 4 {
+		result := make([]byte, 8)
+		// Pack size in upper 16 bits and dataType in lower 16 bits.
+		// The reader checks: upperBytes := firstWord >> 16; if 1 <= upperBytes <= 4 { SDE }.
+		packed := dataType | (uint32(size) << 16)
+		w.header.Order.PutUint32(result[0:4], packed)
+		// Copy data into bytes 4-7; remaining bytes stay zero (zero-padding).
+		copy(result[4:8], data)
+		return result
+	}
 
-	// Tag
+	// Regular format: 8-byte tag header + data + padding to 8-byte boundary.
+	sz := uint32(size)
+	padding := (8 - sz%8) % 8
+	buf := make([]byte, 8+sz+padding)
+
+	// Tag header: type word, then size word.
 	w.header.Order.PutUint32(buf[0:4], dataType)
-	w.header.Order.PutUint32(buf[4:8], size)
+	w.header.Order.PutUint32(buf[4:8], sz)
 
-	// Data
-	copy(buf[8:8+size], data)
-
-	// Padding is already zero from make()
+	// Data and zero-padding (padding bytes already zero from make).
+	copy(buf[8:8+sz], data)
 
 	return buf
 }
