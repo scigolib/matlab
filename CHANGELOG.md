@@ -1,3 +1,23 @@
+## [0.3.15] - 2026-09-02
+
+### Fixed
+- **v5 array flags encoding** (issue #21): class and flags were written as separate uint32 words instead of combined per MATLAB spec; files were unreadable by MATLAB
+- **v5 endianness mapping**: LittleEndian incorrectly mapped to "MI" (big-endian) instead of "IM"; default output was big-endian instead of standard little-endian
+- **v5 reader array flags**: symmetric bug in parser — class read from wrong word, could not read real MATLAB/SciPy-generated files correctly
+- **v5 1D dimensions**: auto-promote `[N]` to `[N,1]` and `[]` to `[1,1]` since MATLAB requires at least 2 dimensions
+
+### Changed
+- **HDF5 dependency**: Updated from v0.13.19 to v0.14.1 (7 bug fixes including 6 write-compatibility fixes, C-library interop test suite, btree security fix)
+- **testify dependency**: Updated from v1.11.1 to v1.12.1
+- **v5 Small Data Element (SDE) format**: writer now uses compact SDE encoding for sub-elements <= 4 bytes, reducing file size
+
+### Added
+- **SciPy reference file tests**: 4 tests validating reader against real SciPy-generated .mat files (testdouble, testcomplex, testmatrix, multi-variable dataset)
+- **Golden byte tests**: 7 tests verifying exact binary output byte-by-byte against MATLAB v5 spec (header, array flags, dimensions, names, full variable, big-endian)
+- **SDE tests**: 6 tests for Small Data Element encoding, round-trip, and file size verification
+
+---
+
 ## [0.3.14] - 2026-04-05
 
 ### Changed

@@ -82,6 +82,15 @@ func NewWriter(w io.Writer, description, endian string) (*Writer, error) {
 // sub-elements for array flags, dimensions, name, and data. Complex numbers
 // are written with separate real and imaginary data sub-elements.
 //
+// Dimension promotion: MATLAB requires at least 2 dimensions for all arrays.
+// This method automatically promotes dimensions before writing:
+//   - [] (empty) -> [1,1] (scalar)
+//   - [N] (1-D)  -> [N,1] (column vector, MATLAB convention)
+//   - [N,M,...] (2-D or higher) -> unchanged
+//
+// The caller's Variable.Dimensions field is not modified; promotion is applied
+// only to the data written into the file.
+//
 // Parameters:
 //   - v: Variable to write (must not be nil)
 //
@@ -93,13 +102,44 @@ func NewWriter(w io.Writer, description, endian string) (*Writer, error) {
 //   - Complex numbers (use types.NumericArray with Real/Imag)
 //   - Multi-dimensional arrays
 func (w *Writer) WriteVariable(v *types.Variable) error {
+	// Promote 1-D dimensions to at least 2-D before validation and encoding.
+	// A shallow copy is used so the caller's slice is never mutated.
+	promoted := w.promoteDimensions(v)
+
 	// Validate variable
-	if err := w.validateVariable(v); err != nil {
+	if err := w.validateVariable(promoted); err != nil {
 		return fmt.Errorf("invalid variable: %w", err)
 	}
 
 	// Write as miMATRIX data element
-	return w.writeMatrix(v)
+	return w.writeMatrix(promoted)
+}
+
+// promoteDimensions returns a shallow copy of v with dimensions guaranteed to
+// be at least 2-D, following MATLAB array conventions:
+//
+//   - []      -> [1,1]  (scalar: no dimensions given)
+//   - [N]     -> [N,1]  (column vector: MATLAB default for 1-D)
+//   - [N,M,…] -> [N,M,…] (unchanged for 2-D or higher)
+//
+// The original Variable is never mutated; only the Dimensions field of the
+// returned copy differs from the original when promotion is needed.
+func (w *Writer) promoteDimensions(v *types.Variable) *types.Variable {
+	switch len(v.Dimensions) {
+	case 0:
+		// Scalar with no explicit dimensions -> [1,1]
+		promoted := *v
+		promoted.Dimensions = []int{1, 1}
+		return &promoted
+	case 1:
+		// 1-D vector -> promote to column vector [N,1]
+		promoted := *v
+		promoted.Dimensions = []int{v.Dimensions[0], 1}
+		return &promoted
+	default:
+		// 2-D or higher: return the original unchanged
+		return v
+	}
 }
 
 // validateVariable checks if variable is valid for v5 format.
@@ -258,11 +298,10 @@ func (w *Writer) encodeMatrixContent(v *types.Variable) ([]byte, error) {
 
 // encodeArrayFlags encodes array flags sub-element.
 //
-// The array flags contain:
-// - Bytes 0-3: Flags (complex bit, sparse bit, etc.)
-// - Bytes 4-7: MATLAB class (mxDOUBLE_CLASS, etc.)
+// Per MAT-file v5 specification:
+// - Bytes 0-3 (word #1): bits 0-7 = class, bit 10 = sparse, bit 11 = complex
+// - Bytes 4-7 (word #2): nzmax (0 for non-sparse arrays).
 func (w *Writer) encodeArrayFlags(v *types.Variable) []byte {
-	// Build flags
 	var flags uint32
 	if v.IsComplex {
 		flags |= 0x0800 // Complex bit (bit 11)
@@ -272,13 +311,13 @@ func (w *Writer) encodeArrayFlags(v *types.Variable) []byte {
 	}
 
 	class := w.dataTypeToClass(v.DataType)
+	// class occupies bits 0-7; flags occupy bits 8-11 — combine into word #1
+	combined := class | flags
 
-	// Create 8-byte data: flags + class
 	data := make([]byte, 8)
-	w.header.Order.PutUint32(data[0:4], flags)
-	w.header.Order.PutUint32(data[4:8], class)
+	w.header.Order.PutUint32(data[0:4], combined) // word #1: class | flags
+	w.header.Order.PutUint32(data[4:8], 0)        // word #2: nzmax = 0
 
-	// Wrap in miUINT32 tag
 	return w.wrapInTag(miUINT32, data)
 }
 
@@ -429,24 +468,52 @@ func (w *Writer) encodeData(v *types.Variable, imaginary bool) ([]byte, error) {
 
 // wrapInTag wraps data in a data element tag.
 //
-// Always uses regular format (8-byte tag + N-byte data + padding).
-// Small format is not used for matrix sub-elements to maintain compatibility
-// with the parser's readData implementation.
+// Uses Small Data Element (SDE) format when data fits in 4 bytes (size 1-4).
+// SDE packs the tag and data into exactly 8 bytes, saving 8+ bytes compared to
+// regular format for small sub-elements like variable names and single dimensions.
+//
+// SDE format (8 bytes total):
+//
+//	bytes 0-3: packed uint32 = (size << 16) | dataType
+//	bytes 4-7: data bytes, zero-padded to 4 bytes
+//
+// Regular format (8-byte tag + N bytes data + padding to 8-byte boundary):
+//
+//	bytes 0-3: dataType
+//	bytes 4-7: size
+//	bytes 8+:  data + zero padding
+//
+// The MAT-file v5 reader (readTag) detects SDE by checking that the upper 16
+// bits of the first uint32 are non-zero and in the range [1, 4]. This writer
+// packs exactly that: upper 16 bits = size, lower 16 bits = dataType. An empty
+// data slice always uses regular format (upper 16 bits = 0, no SDE ambiguity).
 func (w *Writer) wrapInTag(dataType uint32, data []byte) []byte {
-	size := uint32(len(data))
+	size := len(data)
 
-	// Regular format: tag (8 bytes) + data + padding to 8-byte boundary
-	padding := (8 - size%8) % 8
-	buf := make([]byte, 8+size+padding)
+	// Small Data Element format: data fits in 4 bytes (size 1-4).
+	// Produces exactly 8 bytes total, vs 16+ bytes for regular format.
+	if size > 0 && size <= 4 {
+		result := make([]byte, 8)
+		// Pack size in upper 16 bits and dataType in lower 16 bits.
+		// The reader checks: upperBytes := firstWord >> 16; if 1 <= upperBytes <= 4 { SDE }.
+		packed := dataType | (uint32(size) << 16)
+		w.header.Order.PutUint32(result[0:4], packed)
+		// Copy data into bytes 4-7; remaining bytes stay zero (zero-padding).
+		copy(result[4:8], data)
+		return result
+	}
 
-	// Tag
+	// Regular format: 8-byte tag header + data + padding to 8-byte boundary.
+	sz := uint32(size)
+	padding := (8 - sz%8) % 8
+	buf := make([]byte, 8+sz+padding)
+
+	// Tag header: type word, then size word.
 	w.header.Order.PutUint32(buf[0:4], dataType)
-	w.header.Order.PutUint32(buf[4:8], size)
+	w.header.Order.PutUint32(buf[4:8], sz)
 
-	// Data
-	copy(buf[8:8+size], data)
-
-	// Padding is already zero from make()
+	// Data and zero-padding (padding bytes already zero from make).
+	copy(buf[8:8+sz], data)
 
 	return buf
 }

@@ -110,12 +110,13 @@ func createV5(filename string, cfg *config) (*MatFileWriter, error) {
 		return nil, fmt.Errorf("failed to create file: %w", err)
 	}
 
-	// Determine endianness string
+	// Determine endianness string.
+	// Per MAT-file v5 spec: "IM" = little-endian (Intel), "MI" = big-endian (Motorola).
 	var endian string
 	if cfg.endianness == binary.LittleEndian {
-		endian = "MI"
-	} else {
 		endian = "IM"
+	} else {
+		endian = "MI"
 	}
 
 	// Create v5 writer (writes header immediately) with config
