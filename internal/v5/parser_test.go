@@ -1171,9 +1171,9 @@ func TestReadData_ZeroSizeRegularTag(t *testing.T) {
 	flagsTag := make([]byte, 16) // 8 tag + 8 data
 	binary.LittleEndian.PutUint32(flagsTag[0:4], miUINT32)
 	binary.LittleEndian.PutUint32(flagsTag[4:8], 8)
-	// flags=0, class=mxDOUBLE_CLASS(6)
-	binary.LittleEndian.PutUint32(flagsTag[8:12], 0)
-	binary.LittleEndian.PutUint32(flagsTag[12:16], mxDOUBLE_CLASS)
+	// word #1: class | flags (per MAT-file v5 spec), word #2: nzmax = 0
+	binary.LittleEndian.PutUint32(flagsTag[8:12], mxDOUBLE_CLASS)
+	binary.LittleEndian.PutUint32(flagsTag[12:16], 0)
 	content.Write(flagsTag)
 
 	// Sub-element 2: Dimensions (miINT32, [1,0] -> 8 bytes)
@@ -1338,8 +1338,9 @@ func TestParseMatrixContent_TruncatedDimsTag(t *testing.T) {
 	flagsTag := make([]byte, 16)
 	binary.LittleEndian.PutUint32(flagsTag[0:4], miUINT32)
 	binary.LittleEndian.PutUint32(flagsTag[4:8], 8)
-	binary.LittleEndian.PutUint32(flagsTag[8:12], 0)
-	binary.LittleEndian.PutUint32(flagsTag[12:16], mxDOUBLE_CLASS)
+	// word #1: class | flags (per MAT-file v5 spec), word #2: nzmax = 0
+	binary.LittleEndian.PutUint32(flagsTag[8:12], mxDOUBLE_CLASS)
+	binary.LittleEndian.PutUint32(flagsTag[12:16], 0)
 	content.Write(flagsTag)
 	// No dimensions tag follows - truncated
 
@@ -1375,8 +1376,9 @@ func TestParseMatrixContent_TruncatedNameTag(t *testing.T) {
 	flagsTag := make([]byte, 16)
 	binary.LittleEndian.PutUint32(flagsTag[0:4], miUINT32)
 	binary.LittleEndian.PutUint32(flagsTag[4:8], 8)
-	binary.LittleEndian.PutUint32(flagsTag[8:12], 0)
-	binary.LittleEndian.PutUint32(flagsTag[12:16], mxDOUBLE_CLASS)
+	// word #1: class | flags (per MAT-file v5 spec), word #2: nzmax = 0
+	binary.LittleEndian.PutUint32(flagsTag[8:12], mxDOUBLE_CLASS)
+	binary.LittleEndian.PutUint32(flagsTag[12:16], 0)
 	content.Write(flagsTag)
 
 	// Sub-element 2: Dimensions (valid)
@@ -1421,8 +1423,9 @@ func TestParseMatrixContent_TruncatedRealDataTag(t *testing.T) {
 	flagsTag := make([]byte, 16)
 	binary.LittleEndian.PutUint32(flagsTag[0:4], miUINT32)
 	binary.LittleEndian.PutUint32(flagsTag[4:8], 8)
-	binary.LittleEndian.PutUint32(flagsTag[8:12], 0)
-	binary.LittleEndian.PutUint32(flagsTag[12:16], mxDOUBLE_CLASS)
+	// word #1: class | flags (per MAT-file v5 spec), word #2: nzmax = 0
+	binary.LittleEndian.PutUint32(flagsTag[8:12], mxDOUBLE_CLASS)
+	binary.LittleEndian.PutUint32(flagsTag[12:16], 0)
 	content.Write(flagsTag)
 
 	// Sub-element 2: Dimensions
@@ -1474,8 +1477,9 @@ func TestParseMatrixContent_TruncatedImagDataTag(t *testing.T) {
 	flagsTag := make([]byte, 16)
 	binary.LittleEndian.PutUint32(flagsTag[0:4], miUINT32)
 	binary.LittleEndian.PutUint32(flagsTag[4:8], 8)
-	binary.LittleEndian.PutUint32(flagsTag[8:12], 0x0800) // complex bit
-	binary.LittleEndian.PutUint32(flagsTag[12:16], mxDOUBLE_CLASS)
+	// word #1: class | flags (per MAT-file v5 spec), word #2: nzmax = 0
+	binary.LittleEndian.PutUint32(flagsTag[8:12], mxDOUBLE_CLASS|0x0800) // class + complex bit
+	binary.LittleEndian.PutUint32(flagsTag[12:16], 0)
 	content.Write(flagsTag)
 
 	// Sub-element 2: Dimensions
@@ -1534,8 +1538,9 @@ func TestReadData_RegularFormat_TruncatedData(t *testing.T) {
 	flagsTag := make([]byte, 16)
 	binary.LittleEndian.PutUint32(flagsTag[0:4], miUINT32)
 	binary.LittleEndian.PutUint32(flagsTag[4:8], 8)
-	binary.LittleEndian.PutUint32(flagsTag[8:12], 0)
-	binary.LittleEndian.PutUint32(flagsTag[12:16], mxDOUBLE_CLASS)
+	// word #1: class | flags (per MAT-file v5 spec), word #2: nzmax = 0
+	binary.LittleEndian.PutUint32(flagsTag[8:12], mxDOUBLE_CLASS)
+	binary.LittleEndian.PutUint32(flagsTag[12:16], 0)
 	content.Write(flagsTag)
 
 	// Dimensions
@@ -1706,8 +1711,9 @@ func TestParseMatrixContent_DimsDataReadError(t *testing.T) {
 	flagsTag := make([]byte, 16)
 	binary.LittleEndian.PutUint32(flagsTag[0:4], miUINT32)
 	binary.LittleEndian.PutUint32(flagsTag[4:8], 8)
-	binary.LittleEndian.PutUint32(flagsTag[8:12], 0)
-	binary.LittleEndian.PutUint32(flagsTag[12:16], mxDOUBLE_CLASS)
+	// word #1: class | flags (per MAT-file v5 spec), word #2: nzmax = 0
+	binary.LittleEndian.PutUint32(flagsTag[8:12], mxDOUBLE_CLASS)
+	binary.LittleEndian.PutUint32(flagsTag[12:16], 0)
 	content.Write(flagsTag)
 
 	// Dims tag: declares 8 bytes but only 2 available
@@ -1750,8 +1756,9 @@ func TestParseMatrixContent_NameDataReadError(t *testing.T) {
 	flagsTag := make([]byte, 16)
 	binary.LittleEndian.PutUint32(flagsTag[0:4], miUINT32)
 	binary.LittleEndian.PutUint32(flagsTag[4:8], 8)
-	binary.LittleEndian.PutUint32(flagsTag[8:12], 0)
-	binary.LittleEndian.PutUint32(flagsTag[12:16], mxDOUBLE_CLASS)
+	// word #1: class | flags (per MAT-file v5 spec), word #2: nzmax = 0
+	binary.LittleEndian.PutUint32(flagsTag[8:12], mxDOUBLE_CLASS)
+	binary.LittleEndian.PutUint32(flagsTag[12:16], 0)
 	content.Write(flagsTag)
 
 	// Valid dimensions
@@ -1802,8 +1809,9 @@ func TestParseMatrixContent_ImagDataReadError(t *testing.T) {
 	flagsTag := make([]byte, 16)
 	binary.LittleEndian.PutUint32(flagsTag[0:4], miUINT32)
 	binary.LittleEndian.PutUint32(flagsTag[4:8], 8)
-	binary.LittleEndian.PutUint32(flagsTag[8:12], 0x0800) // complex bit
-	binary.LittleEndian.PutUint32(flagsTag[12:16], mxDOUBLE_CLASS)
+	// word #1: class | flags (per MAT-file v5 spec), word #2: nzmax = 0
+	binary.LittleEndian.PutUint32(flagsTag[8:12], mxDOUBLE_CLASS|0x0800) // class + complex bit
+	binary.LittleEndian.PutUint32(flagsTag[12:16], 0)
 	content.Write(flagsTag)
 
 	// Dimensions

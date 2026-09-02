@@ -258,11 +258,10 @@ func (w *Writer) encodeMatrixContent(v *types.Variable) ([]byte, error) {
 
 // encodeArrayFlags encodes array flags sub-element.
 //
-// The array flags contain:
-// - Bytes 0-3: Flags (complex bit, sparse bit, etc.)
-// - Bytes 4-7: MATLAB class (mxDOUBLE_CLASS, etc.)
+// Per MAT-file v5 specification:
+// - Bytes 0-3 (word #1): bits 0-7 = class, bit 10 = sparse, bit 11 = complex
+// - Bytes 4-7 (word #2): nzmax (0 for non-sparse arrays).
 func (w *Writer) encodeArrayFlags(v *types.Variable) []byte {
-	// Build flags
 	var flags uint32
 	if v.IsComplex {
 		flags |= 0x0800 // Complex bit (bit 11)
@@ -272,13 +271,13 @@ func (w *Writer) encodeArrayFlags(v *types.Variable) []byte {
 	}
 
 	class := w.dataTypeToClass(v.DataType)
+	// class occupies bits 0-7; flags occupy bits 8-11 — combine into word #1
+	combined := class | flags
 
-	// Create 8-byte data: flags + class
 	data := make([]byte, 8)
-	w.header.Order.PutUint32(data[0:4], flags)
-	w.header.Order.PutUint32(data[4:8], class)
+	w.header.Order.PutUint32(data[0:4], combined) // word #1: class | flags
+	w.header.Order.PutUint32(data[4:8], 0)        // word #2: nzmax = 0
 
-	// Wrap in miUINT32 tag
 	return w.wrapInTag(miUINT32, data)
 }
 

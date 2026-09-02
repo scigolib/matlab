@@ -126,9 +126,9 @@ func TestCreate_WithOptions(t *testing.T) {
 	desc := string(header[0:116])
 	assert.Contains(t, desc, "Custom description")
 
-	// Check endianness (bytes 126-127)
-	assert.Equal(t, byte('I'), header[126])
-	assert.Equal(t, byte('M'), header[127])
+	// Check endianness (bytes 126-127): BigEndian → "MI"
+	assert.Equal(t, byte('M'), header[126])
+	assert.Equal(t, byte('I'), header[127])
 }
 
 func TestCreate_BackwardCompatibility(t *testing.T) {
@@ -161,9 +161,9 @@ func TestCreate_V5_DefaultEndianness(t *testing.T) {
 	_, err = file.Read(header)
 	require.NoError(t, err)
 
-	// Check default endianness (bytes 126-127) should be "MI" (little-endian)
-	assert.Equal(t, byte('M'), header[126])
-	assert.Equal(t, byte('I'), header[127])
+	// Check default endianness (bytes 126-127): default LittleEndian → "IM"
+	assert.Equal(t, byte('I'), header[126])
+	assert.Equal(t, byte('M'), header[127])
 }
 
 func TestCreate_V5_DefaultDescription(t *testing.T) {

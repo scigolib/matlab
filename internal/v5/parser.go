@@ -142,9 +142,11 @@ func (p *Parser) parseMatrixContent() (*types.Variable, error) {
 		return nil, errors.New("invalid array flags size")
 	}
 
-	flags := p.Header.Order.Uint32(flagsData[:4])
-	class := p.Header.Order.Uint32(flagsData[4:8])
-	isComplex := (flags & 0x0800) != 0
+	// Per MAT-file v5 spec: word #1 contains class (bits 0-7) and flags (bits 8-11).
+	// Word #2 is nzmax and is not used for non-sparse arrays.
+	combined := p.Header.Order.Uint32(flagsData[:4])
+	class := combined & 0xFF              // bits 0-7
+	isComplex := (combined & 0x0800) != 0 // bit 11
 
 	// Read dimensions
 	dimsTag, err := p.readTag()
