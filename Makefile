@@ -86,16 +86,24 @@ run-example:
 	@echo "Running example..."
 	go run cmd/example/main.go
 
+# 32-bit targets: the library must compile on small devices and Raspberry Pi
+cross-build:
+	@echo "Cross-building 32-bit targets..."
+	GOOS=linux GOARCH=386 go build ./...
+	GOOS=linux GOARCH=arm GOARM=6 go build ./...
+	GOOS=windows GOARCH=386 go build ./...
+	@echo "All 32-bit targets built ✓"
+
 # Development workflow
 dev: fmt lint test
 	@echo "Development checks complete!"
 
 # CI/CD checks (includes formatting check)
-ci: fmt-check test lint
+ci: fmt-check test lint cross-build
 	@echo "CI checks passed!"
 
 # Pre-commit checks
-pre-commit: fmt lint test
+pre-commit: fmt lint test cross-build
 	@echo "Pre-commit checks complete!"
 
 # Install golangci-lint (if not installed)
@@ -128,9 +136,10 @@ help:
 	@echo "  make dev           - Full development workflow"
 	@echo "  make ci            - CI/CD checks"
 	@echo "  make pre-commit    - Pre-commit checks"
+	@echo "  make cross-build   - Build 32-bit targets (386, arm)"
 	@echo "  make install-lint  - Install golangci-lint"
 	@echo ""
 	@echo "Version: $(VERSION)"
 
 .PHONY: build test test-coverage test-race benchmark lint lint-report fmt fmt-check clean \
-	examples run-example dev ci pre-commit install-lint help
+	examples run-example dev ci pre-commit cross-build install-lint help
