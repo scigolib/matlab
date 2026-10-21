@@ -3,7 +3,9 @@ package v5
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
+	"math"
 
 	"github.com/scigolib/matlab/types"
 )
@@ -13,6 +15,7 @@ type Parser struct {
 	r      io.Reader
 	Header *Header
 	pos    int64
+	limit  int64 // total stream length when known; 0 = unknown
 }
 
 // Mat5File represents a parsed v5 MAT-file.
@@ -21,9 +24,28 @@ type Mat5File struct {
 	Variables []*types.Variable
 }
 
-// NewParser creates a new v5 parser.
+// NewParser creates a new v5 parser, deriving the stream bound from the reader
+// when it can report its size (see ReaderSize).
 func NewParser(r io.Reader) (*Parser, error) {
-	p := &Parser{r: r}
+	limit, _ := ReaderSize(r)
+	return newParser(r, limit)
+}
+
+// NewParserSized creates a v5 parser with an explicit bound on the stream's
+// total length. Use it when the reader given to the parser hides the size of
+// the underlying input — matlab.Open wraps its reader in an io.MultiReader,
+// which does exactly that and passes the real length here. A limit of zero or
+// less means unknown, leaving only the absolute cap as a bound.
+func NewParserSized(r io.Reader, limit int64) (*Parser, error) {
+	return newParser(r, limit)
+}
+
+func newParser(r io.Reader, limit int64) (*Parser, error) {
+	if limit < 0 {
+		limit = 0
+	}
+
+	p := &Parser{r: r, limit: limit}
 	if err := p.parseHeader(); err != nil {
 		return nil, err
 	}
@@ -72,7 +94,7 @@ func (p *Parser) Parse() (*Mat5File, error) {
 			file.Variables = append(file.Variables, variable)
 		case miCOMPRESSED:
 			// Decompress the data
-			decompressed, err := decompress(p.r, tag.Size)
+			decompressed, err := p.decompress(tag.Size)
 			if err != nil {
 				return nil, err
 			}
@@ -81,10 +103,12 @@ func (p *Parser) Parse() (*Mat5File, error) {
 			// Note: Compressed elements do NOT have padding after the data.
 			// The next element starts immediately after the compressed bytes.
 
-			// Parse the decompressed content (should contain a miMATRIX element)
+			// Parse the decompressed content (should contain a miMATRIX element).
+			// The buffer length is the bound every nested tag is checked against.
 			sub := &Parser{
 				r:      bytes.NewReader(decompressed),
 				Header: p.Header,
+				limit:  int64(len(decompressed)),
 				pos:    0,
 			}
 
@@ -112,15 +136,18 @@ func (p *Parser) Parse() (*Mat5File, error) {
 
 // parseMatrix parses a matrix element.
 func (p *Parser) parseMatrix(tag *DataTag) (*types.Variable, error) {
-	data := make([]byte, tag.Size)
-	if _, err := io.ReadFull(p.r, data); err != nil {
+	data, err := p.readPayload(tag.Size)
+	if err != nil {
 		return nil, err
 	}
 	p.pos += int64(tag.Size)
 
+	// The matrix payload is the bound every sub-element tag is checked against:
+	// a sub-element cannot legitimately extend past the element that contains it.
 	sub := &Parser{
 		r:      bytes.NewReader(data),
 		Header: p.Header,
+		limit:  int64(len(data)),
 		pos:    0,
 	}
 	return sub.parseMatrixContent()
@@ -158,10 +185,9 @@ func (p *Parser) parseMatrixContent() (*types.Variable, error) {
 		return nil, err
 	}
 
-	dimCount := len(dimsData) / 4
-	dimensions := make([]int, dimCount)
-	for i := 0; i < dimCount; i++ {
-		dimensions[i] = int(p.Header.Order.Uint32(dimsData[i*4 : (i+1)*4]))
+	dimensions, err := p.parseDimensions(dimsData)
+	if err != nil {
+		return nil, err
 	}
 
 	// Read variable name
@@ -222,6 +248,30 @@ func (p *Parser) parseMatrixContent() (*types.Variable, error) {
 	return variable, nil
 }
 
+// parseDimensions decodes the dimensions sub-element payload.
+//
+// Dimensions are a signed int32 array (MAT v5 spec). A payload that is not a
+// whole number of entries, or an entry with the sign bit set, is corrupt:
+// converting it to int would describe a different array per platform (negative
+// on 32-bit, a huge positive on 64-bit).
+func (p *Parser) parseDimensions(dimsData []byte) ([]int, error) {
+	if len(dimsData)%4 != 0 {
+		return nil, fmt.Errorf("invalid dimensions payload: %d bytes is not a multiple of 4", len(dimsData))
+	}
+
+	dimCount := len(dimsData) / 4
+	dimensions := make([]int, dimCount)
+	for i := 0; i < dimCount; i++ {
+		raw := p.Header.Order.Uint32(dimsData[i*4 : (i+1)*4])
+		if raw > math.MaxInt32 {
+			return nil, fmt.Errorf("invalid dimension value %d at index %d: dimensions are an int32 array", raw, i)
+		}
+		dimensions[i] = int(raw)
+	}
+
+	return dimensions, nil
+}
+
 // readData reads data for a given tag.
 func (p *Parser) readData(tag *DataTag) ([]byte, error) {
 	// For small format, data is already captured in the tag
@@ -230,8 +280,8 @@ func (p *Parser) readData(tag *DataTag) ([]byte, error) {
 	}
 
 	// Regular format: read data from stream
-	data := make([]byte, tag.Size)
-	if _, err := io.ReadFull(p.r, data); err != nil {
+	data, err := p.readPayload(tag.Size)
+	if err != nil {
 		return nil, err
 	}
 	p.pos += int64(tag.Size)

@@ -24,7 +24,7 @@ func TestDecompress_ValidData(t *testing.T) {
 
 	// Decompress using our function
 	reader := bytes.NewReader(compressed)
-	result, err := decompress(reader, uint32(len(compressed)))
+	result, err := (&Parser{r: reader}).decompress(uint32(len(compressed)))
 	if err != nil {
 		t.Fatalf("decompress() unexpected error: %v", err)
 	}
@@ -38,7 +38,7 @@ func TestDecompress_ValidData(t *testing.T) {
 func TestDecompress_InvalidZlib(t *testing.T) {
 	garbage := []byte{0xDE, 0xAD, 0xBE, 0xEF, 0x01, 0x02, 0x03, 0x04}
 	reader := bytes.NewReader(garbage)
-	_, err := decompress(reader, uint32(len(garbage)))
+	_, err := (&Parser{r: reader}).decompress(uint32(len(garbage)))
 	if err == nil {
 		t.Error("decompress() expected error for invalid zlib data, got nil")
 	}
@@ -48,7 +48,7 @@ func TestDecompress_InvalidZlib(t *testing.T) {
 func TestDecompress_EmptyInput(t *testing.T) {
 	// compressedSize > 0 but empty reader => io.ReadFull should fail
 	reader := bytes.NewReader([]byte{})
-	_, err := decompress(reader, 10)
+	_, err := (&Parser{r: reader}).decompress(10)
 	if err == nil {
 		t.Error("decompress() expected error for empty input, got nil")
 	}
@@ -76,7 +76,7 @@ func TestDecompress_CorruptedData(t *testing.T) {
 	}
 
 	reader := bytes.NewReader(compressed)
-	_, err := decompress(reader, uint32(len(compressed)))
+	_, err := (&Parser{r: reader}).decompress(uint32(len(compressed)))
 	if err == nil {
 		t.Error("decompress() expected error for corrupted zlib data, got nil")
 	}
@@ -86,7 +86,7 @@ func TestDecompress_CorruptedData(t *testing.T) {
 func TestDecompress_TruncatedReader(t *testing.T) {
 	// Provide only 3 bytes but claim size is 100
 	reader := bytes.NewReader([]byte{0x78, 0x9C, 0x00})
-	_, err := decompress(reader, 100)
+	_, err := (&Parser{r: reader}).decompress(100)
 	if err == nil {
 		t.Error("decompress() expected error for truncated reader, got nil")
 	}

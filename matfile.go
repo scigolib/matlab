@@ -34,6 +34,12 @@ func Open(r io.Reader) (*MatFile, error) {
 		return nil, err
 	}
 
+	// The stream size must be taken before the header is prepended:
+	// io.MultiReader hides it, and the v5 parser needs the real bound to
+	// validate element sizes against the bytes actually present (ADR-003).
+	// An unknown size leaves only the absolute payload cap as a bound.
+	streamSize, _ := v5.ReaderSize(r)
+
 	// Create a MultiReader to re-include the header
 	fullReader := io.MultiReader(bytes.NewReader(header), r)
 
@@ -44,7 +50,7 @@ func Open(r io.Reader) (*MatFile, error) {
 
 	// Check for v5 format (MATLAB v5-v7.2)
 	if isV5Format(header) {
-		return parseV5(fullReader)
+		return parseV5(fullReader, streamSize)
 	}
 
 	return nil, ErrInvalidFormat
@@ -63,9 +69,10 @@ func isV5Format(header []byte) bool {
 	return endian == "IM" || endian == "MI"
 }
 
-// parseV5 parses v5 format MAT-files.
-func parseV5(r io.Reader) (*MatFile, error) {
-	parser, err := v5.NewParser(r)
+// parseV5 parses v5 format MAT-files. streamSize is the length of the input the
+// fullReader wraps, or 0 when it could not be determined.
+func parseV5(r io.Reader, streamSize int64) (*MatFile, error) {
+	parser, err := v5.NewParserSized(r, streamSize)
 	if err != nil {
 		return nil, err
 	}
