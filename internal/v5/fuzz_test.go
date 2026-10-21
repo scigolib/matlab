@@ -19,7 +19,7 @@ func FuzzParse(f *testing.F) {
 	f.Add(streamBytes(testHeader(), regularTag(miCOMPRESSED, 4), make([]byte, 4)))
 	f.Add(streamBytes(testHeader(), regularTag(miUINT32, 0xFFFFFFFF)))
 
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(_ *testing.T, data []byte) {
 		parser, err := NewParser(bytes.NewReader(data))
 		if err != nil {
 			return
