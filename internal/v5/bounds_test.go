@@ -3,10 +3,14 @@ package v5
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"io"
+	"io/fs"
 	"runtime"
 	"strings"
 	"testing"
+	"testing/fstest"
+	"time"
 )
 
 // testClaim is the payload size a crafted tag claims while the stream carries
@@ -217,6 +221,133 @@ func TestParserSized_ExplicitLimit(t *testing.T) {
 	}
 }
 
+// statFile is an fs.FileInfo stub for the ReaderSize cases a real file cannot
+// produce (a Stat error and a negative size).
+type statFile struct {
+	size int64
+}
+
+func (s statFile) Name() string       { return "stub" }
+func (s statFile) Size() int64        { return s.size }
+func (s statFile) Mode() fs.FileMode  { return 0 }
+func (s statFile) ModTime() time.Time { return time.Time{} }
+func (s statFile) IsDir() bool        { return false }
+func (s statFile) Sys() any           { return nil }
+
+// statReader reports Stat results that fstest.MapFS cannot express.
+type statReader struct {
+	info fs.FileInfo
+	err  error
+}
+
+func (s statReader) Read([]byte) (int, error)   { return 0, io.EOF }
+func (s statReader) Stat() (fs.FileInfo, error) { return s.info, s.err }
+
+// TestReaderSize_Stat covers the *os.File shape: a file that reports its size
+// through Stat, a Stat error, and a negative size.
+func TestReaderSize_Stat(t *testing.T) {
+	fsys := fstest.MapFS{"f": &fstest.MapFile{Data: []byte("hello")}}
+	file, err := fsys.Open("f")
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+
+	if size, ok := ReaderSize(file); !ok || size != 5 {
+		t.Errorf("ReaderSize(MapFS file) = %d, %v; want 5, true", size, ok)
+	}
+
+	if _, ok := ReaderSize(statReader{err: errors.New("stat failed")}); ok {
+		t.Error("ReaderSize reported a size for a reader whose Stat failed")
+	}
+	if _, ok := ReaderSize(statReader{info: statFile{size: -1}}); ok {
+		t.Error("ReaderSize reported a size for a negative file size")
+	}
+}
+
+// TestReadPayload_ZeroSize pins the empty-payload path: no read, no allocation.
+func TestReadPayload_ZeroSize(t *testing.T) {
+	p := &Parser{}
+
+	data, err := p.readPayload(0)
+	if err != nil {
+		t.Fatalf("readPayload(0) error: %v", err)
+	}
+	if data != nil {
+		t.Errorf("readPayload(0) = %v, want nil", data)
+	}
+}
+
+// TestNewParserSized_NegativeLimit checks a negative limit is treated as
+// unknown rather than as an impossible bound that rejects every tag.
+func TestNewParserSized_NegativeLimit(t *testing.T) {
+	p, err := NewParserSized(bytes.NewReader(testHeader()), -1)
+	if err != nil {
+		t.Fatalf("NewParserSized() error: %v", err)
+	}
+	if p.limit != 0 {
+		t.Errorf("limit = %d, want 0 (unknown)", p.limit)
+	}
+}
+
+// lenReader exposes Len but no Size, the shape buffer-like readers use.
+type lenReader struct{ data []byte }
+
+func (r *lenReader) Read(p []byte) (int, error) {
+	if len(r.data) == 0 {
+		return 0, io.EOF
+	}
+	n := copy(p, r.data)
+	r.data = r.data[n:]
+	return n, nil
+}
+
+func (r *lenReader) Len() int { return len(r.data) }
+
+// TestReaderSize_Len covers the Len-only shape.
+func TestReaderSize_Len(t *testing.T) {
+	size, ok := ReaderSize(&lenReader{data: make([]byte, 9)})
+	if !ok || size != 9 {
+		t.Errorf("ReaderSize(lenReader) = %d, %v; want 9, true", size, ok)
+	}
+}
+
+// shortReader claims ten times the bytes it delivers, so the region check
+// passes and the read itself is the step that fails.
+type shortReader struct{ data []byte }
+
+func (r *shortReader) Read(p []byte) (int, error) {
+	if len(r.data) == 0 {
+		return 0, io.EOF
+	}
+	n := copy(p, r.data)
+	r.data = r.data[n:]
+	return n, nil
+}
+
+func (r *shortReader) Size() int64 { return int64(len(r.data)) * 10 }
+
+// TestParser_ShortReadWithOverstatedLimit covers a reader whose reported size
+// exceeds what it delivers: the tag passes the region check and ReadFull is
+// what reports the truncation.
+func TestParser_ShortReadWithOverstatedLimit(t *testing.T) {
+	in := streamBytes(testHeader(), regularTag(miMATRIX, 16), make([]byte, 4))
+
+	parser, err := NewParser(&shortReader{data: in})
+	if err != nil {
+		t.Fatalf("NewParser() error: %v", err)
+	}
+
+	if _, err := parser.Parse(); err == nil {
+		t.Fatal("Parse() accepted a payload shorter than the tag declares")
+	}
+}
+
+// negativeSizeReader reports a size that cannot describe a byte range.
+type negativeSizeReader struct{}
+
+func (negativeSizeReader) Read([]byte) (int, error) { return 0, io.EOF }
+func (negativeSizeReader) Size() int64              { return -1 }
+
 // TestReaderSize pins which readers report their size and which do not.
 func TestReaderSize(t *testing.T) {
 	tests := []struct {
@@ -231,6 +362,7 @@ func TestReaderSize(t *testing.T) {
 		{name: "embedded reader hides the size", reader: struct{ io.Reader }{bytes.NewReader(make([]byte, 7))}, known: false},
 		{name: "nil", reader: nil, known: false},
 		{name: "typed nil", reader: (*bytes.Reader)(nil), known: false},
+		{name: "negative size", reader: negativeSizeReader{}, known: false},
 	}
 
 	for _, tt := range tests {
