@@ -11,6 +11,11 @@
 
 ### Added
 - CI cross-build job for `linux/386`, `linux/arm GOARM=6` and `windows/386`, plus `go vet` on 386, so a 32-bit regression cannot go unnoticed again
+- `make cross-build` target, included in `make ci` and `make pre-commit`
+
+### Removed
+- `scripts/pre-release-check.sh`: the checks are the plain commands in CI and the Makefile targets (`make ci`, `make pre-commit`, `make cross-build`)
+- `RELEASE_GUIDE.md`: it documented a Git-Flow process (develop branch, release branches) the project no longer uses; the release flow is CI-driven through a PR
 
 ---
 
