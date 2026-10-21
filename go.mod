@@ -3,7 +3,7 @@ module github.com/scigolib/matlab
 go 1.25
 
 require (
-	github.com/scigolib/hdf5 v0.14.1
+	github.com/scigolib/hdf5 v0.14.2
 	github.com/stretchr/testify v1.12.1
 )
 
