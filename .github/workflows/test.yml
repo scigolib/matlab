@@ -145,3 +145,6 @@ jobs:
 
     - name: Vet linux/386
       run: GOOS=linux GOARCH=386 go vet ./...
+
+    - name: Test linux/386
+      run: GOOS=linux GOARCH=386 go test -short ./...
