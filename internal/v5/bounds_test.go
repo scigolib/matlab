@@ -85,6 +85,33 @@ func TestParser_TruncatedPayloadDoesNotAllocate(t *testing.T) {
 	}
 }
 
+// TestParser_UnknownSizeTruncatedPayload covers a reader that cannot report its
+// length (io.MultiReader and readers embedding another io.Reader do that): no
+// region check is possible, so the payload must be accumulated as it arrives and
+// a truncated stream must not cost the claimed size.
+func TestParser_UnknownSizeTruncatedPayload(t *testing.T) {
+	in := streamBytes(testHeader(), regularTag(miMATRIX, testClaim))
+
+	// Embedding io.Reader hides the concrete type's Size method.
+	var hidden io.Reader = struct{ io.Reader }{bytes.NewReader(in)}
+
+	var err error
+	alloc := allocatedBytes(func() {
+		var parser *Parser
+		parser, err = NewParser(hidden)
+		if err == nil {
+			_, err = parser.Parse()
+		}
+	})
+
+	if err == nil {
+		t.Fatal("Parse() accepted a tag whose payload is not in the stream")
+	}
+	if alloc > allocTolerance {
+		t.Errorf("parsing %d bytes of unknown length that claim %d allocated %d bytes", len(in), testClaim, alloc)
+	}
+}
+
 // TestParser_MatrixElementBeyondPayload verifies that an inner element claiming
 // more than the matrix payload it lives in is rejected, not allocated.
 func TestParser_MatrixElementBeyondPayload(t *testing.T) {
