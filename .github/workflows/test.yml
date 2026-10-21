@@ -111,3 +111,37 @@ jobs:
           exit 1
         fi
         echo "All files are properly formatted ✓"
+
+  # 32-bit cross-build - the library must compile on small devices (386) and
+  # Raspberry Pi (arm GOARM=6). An untyped 2^31 constant once overflowed int on
+  # these targets and stayed unnoticed because CI built only amd64.
+  cross-build:
+    name: Cross-Build 32-bit
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: 0
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.25'
+        cache: true
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Build linux/386
+      run: GOOS=linux GOARCH=386 go build ./...
+
+    - name: Build linux/arm GOARM=6
+      run: GOOS=linux GOARCH=arm GOARM=6 go build ./...
+
+    - name: Build windows/386
+      run: GOOS=windows GOARCH=386 go build ./...
+
+    - name: Vet linux/386
+      run: GOOS=linux GOARCH=386 go vet ./...

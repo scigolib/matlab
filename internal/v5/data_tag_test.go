@@ -30,13 +30,16 @@ func TestDataTag_OversizedTag(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:        "valid 2GB size (boundary)",
-			size:        maxReasonableSize,
-			expectError: false,
+			// 2 GiB is the cap itself and passes the size check, but the value is
+			// not representable by int on 32-bit targets, where make() would
+			// panic. The parser rejects it there before any allocation.
+			name:        "2GB boundary",
+			size:        maxTagSize,
+			expectError: uint64(maxTagSize) > uint64(maxInt),
 		},
 		{
 			name:        "invalid 2GB+1 size",
-			size:        maxReasonableSize + 1,
+			size:        maxTagSize + 1,
 			expectError: true,
 		},
 		{

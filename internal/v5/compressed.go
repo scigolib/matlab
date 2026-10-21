@@ -18,15 +18,18 @@ const maxDecompressedSize = 100 * 1024 * 1024 // 100MB
 const maxCompressionRatio = 1000
 
 // decompress decompresses zlib-compressed data from a MAT-file.
-// It reads compressedSize bytes from r and returns the decompressed content.
+// It reads compressedSize bytes from the parser's stream — through the same
+// bounded payload path as every other element — and returns the decompressed
+// content.
 //
 // Security: Implements protection against compression bombs:
 // - Maximum decompressed size limit (100MB).
 // - Maximum compression ratio check (1000:1).
-func decompress(r io.Reader, compressedSize uint32) ([]byte, error) {
-	// Read compressed data
-	compressed := make([]byte, compressedSize)
-	if _, err := io.ReadFull(r, compressed); err != nil {
+func (p *Parser) decompress(compressedSize uint32) ([]byte, error) {
+	// Read compressed data. The size was validated by readTag, and the read
+	// itself is bounded by the stream length when known (ADR-003).
+	compressed, err := p.readPayload(compressedSize)
+	if err != nil {
 		return nil, fmt.Errorf("failed to read compressed data: %w", err)
 	}
 
@@ -50,9 +53,9 @@ func decompress(r io.Reader, compressedSize uint32) ([]byte, error) {
 		return nil, fmt.Errorf("decompressed size exceeds limit: %d > %d bytes", n, maxDecompressedSize)
 	}
 
-	// Check compression ratio
-	if compressedSize > 0 {
-		ratio := float64(n) / float64(compressedSize)
+	// Check compression ratio against the bytes actually read
+	if len(compressed) > 0 {
+		ratio := float64(n) / float64(len(compressed))
 		if ratio > maxCompressionRatio {
 			return nil, fmt.Errorf("compression ratio too high: %.1f:1 (max %d:1)", ratio, maxCompressionRatio)
 		}

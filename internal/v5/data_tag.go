@@ -1,14 +1,8 @@
 package v5
 
 import (
-	"fmt"
 	"io"
 )
-
-// maxReasonableSize defines the maximum allowed tag size (2GB).
-// This prevents memory exhaustion attacks from malicious MAT-files
-// with extremely large size values.
-const maxReasonableSize = 2 * 1024 * 1024 * 1024 // 2GB
 
 // DataTag represents a data element tag.
 type DataTag struct {
@@ -54,9 +48,10 @@ func (p *Parser) readTag() (*DataTag, error) {
 	dataType := firstWord
 	size = p.Header.Order.Uint32(buf[4:8])
 
-	// Validate size to prevent memory exhaustion attacks
-	if size > maxReasonableSize {
-		return nil, fmt.Errorf("tag size too large: %d bytes (max %d)", size, maxReasonableSize)
+	// Validate the size before any consumer can allocate, skip or read by it.
+	// The tag header is untrusted input (see validatePayload).
+	if err := p.validatePayload(size); err != nil {
+		return nil, err
 	}
 
 	return &DataTag{
