@@ -1,4 +1,4 @@
-## [Unreleased]
+## [0.3.16] - 2026-10-22
 
 ### Fixed
 - **32-bit builds** (`linux/386`, `linux/arm GOARM=6`, `windows/386`): an untyped `2^31` constant used as an `int` argument did not fit `int` on 32-bit targets and failed to compile. The payload cap is now typed, and sizes above the platform's `int` limit are rejected as errors
