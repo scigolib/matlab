@@ -4,6 +4,10 @@
 - **32-bit builds** (`linux/386`, `linux/arm GOARM=6`, `windows/386`): an untyped `2^31` constant used as an `int` argument did not fit `int` on 32-bit targets and failed to compile. The payload cap is now typed, and sizes above the platform's `int` limit are rejected as errors
 - **32-bit runtime safety**: a tag size at the 2 GiB cap passed validation and then panicked in `make` on 32-bit (`runtime error: makeslice: len out of range`); such sizes are now reported as errors before any allocation
 - **v5 dimensions** are validated as the signed int32 array the specification defines: a payload that is not a multiple of 4 bytes, or a value above `MaxInt32`, is rejected instead of silently producing a negative dimension on 32-bit and a huge positive one on 64-bit
+- **v5 writer dimension overflow check** used the platform's `MaxInt`, so dimensions valid on 64-bit were rejected on 32-bit; the bound is now `MaxInt64`, matching the int64 accumulator
+
+### Changed
+- **HDF5 dependency**: v0.14.1 → v0.14.2 (security release: every allocation sized from file metadata is validated against the bytes present, the file reader is bounded; 32-bit targets compile again)
 
 ### Security
 - **Unchecked allocations sized from file metadata** (the class fixed in hdf5 v0.14.2, GHSA-8p88-h28q-w6m9): element payloads, matrix sub-elements and compressed elements were allocated at the size the file claimed before any byte was read, so a 136-byte file claiming 2 GiB could exhaust memory. Sizes are now validated against the bytes actually present when the stream length is known, and otherwise accumulated as the bytes arrive, with a hard 2 GiB cap

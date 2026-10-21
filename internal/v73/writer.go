@@ -96,8 +96,10 @@ func (w *Writer) validateVariable(v *types.Variable) error {
 			return fmt.Errorf("dimension[%d] must be positive, got %d", i, d)
 		}
 
-		// Check for overflow before multiplying
-		if d > 0 && total > math.MaxInt/int64(d) {
+		// Check for overflow before multiplying. The bound is MaxInt64 because
+		// total is accumulated in int64: using the platform's MaxInt would make
+		// the same dimensions acceptable on 64-bit and rejected on 32-bit.
+		if d > 0 && total > math.MaxInt64/int64(d) {
 			return fmt.Errorf("dimensions overflow (total elements too large): %v", v.Dimensions)
 		}
 

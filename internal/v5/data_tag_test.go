@@ -13,6 +13,7 @@ func TestDataTag_OversizedTag(t *testing.T) {
 		name        string
 		size        uint32
 		expectError bool
+		wantErr     string // error substring; empty means "tag size too large"
 	}{
 		{
 			name:        "valid small size",
@@ -36,6 +37,7 @@ func TestDataTag_OversizedTag(t *testing.T) {
 			name:        "2GB boundary",
 			size:        maxTagSize,
 			expectError: uint64(maxTagSize) > uint64(maxInt),
+			wantErr:     "platform limit",
 		},
 		{
 			name:        "invalid 2GB+1 size",
@@ -59,7 +61,7 @@ func TestDataTag_OversizedTag(t *testing.T) {
 			tag, err := createAndParseTag(tt.size)
 
 			if tt.expectError {
-				assertTagError(t, tag, err, tt.size)
+				assertTagError(t, tag, err, tt.size, tt.wantErr)
 			} else {
 				assertTagValid(t, tag, err, tt.size)
 			}
@@ -85,7 +87,7 @@ func createAndParseTag(size uint32) (*DataTag, error) {
 }
 
 // assertTagError verifies that tag parsing failed as expected.
-func assertTagError(t *testing.T, tag *DataTag, err error, size uint32) {
+func assertTagError(t *testing.T, tag *DataTag, err error, size uint32, wantErr string) {
 	t.Helper()
 	if err == nil {
 		t.Errorf("expected error for size %d, got nil", size)
@@ -93,8 +95,11 @@ func assertTagError(t *testing.T, tag *DataTag, err error, size uint32) {
 	if tag != nil {
 		t.Errorf("expected nil tag for size %d, got %+v", size, tag)
 	}
-	if err != nil && !strings.Contains(err.Error(), "tag size too large") {
-		t.Errorf("wrong error message: %v", err)
+	if wantErr == "" {
+		wantErr = "tag size too large"
+	}
+	if err != nil && !strings.Contains(err.Error(), wantErr) {
+		t.Errorf("wrong error message: %v (want it to contain %q)", err, wantErr)
 	}
 }
 
