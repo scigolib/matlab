@@ -2,7 +2,7 @@
 
 > **Strategic Approach**: Leverage existing HDF5 library and MATLAB documentation
 
-**Last Updated**: 2026-02-02 | **Current Version**: v0.3.4 (HOTFIX ✅) | **Target**: v1.0.0 stable (2026)
+**Last Updated**: 2026-10-22 | **Current Version**: v0.3.16 (PATCH ✅) | **Target**: v1.0.0 stable (2026)
 
 ---
 
@@ -46,7 +46,10 @@ v0.2.0-beta (2025-11-06) → v5 Writer + parser bug fixes + comprehensive tests
 v0.2.0 STABLE (2025-01-09) ✅ → HDF5 v0.13.1 stable + production ready
          ↓ (1 day!)
 v0.3.0 STABLE (2025-11-21) ✅ → Production Quality (Grade A-)
-         ↓ (2-3 weeks)
+         ↓
+v0.3.1–v0.3.16 (2026) ✅ → dependency updates through hdf5 v0.14.2,
+         32-bit target support, payload bounds, fuzzing
+         ↓
 v0.4.0 → Context Support (cancellable operations)
          ↓ (1-2 months)
 v0.5.0+ → Advanced features (compression, structures, cells)
@@ -66,7 +69,7 @@ v2.0.0 → Only if breaking changes needed
 
 ---
 
-## 📊 Current Status (v0.3.0 - STABLE RELEASE ✅)
+## 📊 Current Status (v0.3.16 - STABLE RELEASE ✅)
 
 ### ✅ What's Working Now
 
@@ -75,7 +78,7 @@ v2.0.0 → Only if breaking changes needed
 - ✅ Development tools (Makefile, .golangci.yml v2.5, 34+ linters)
 - ✅ CI/CD (GitHub Actions: Linux, macOS, Windows) - ALL GREEN
 - ✅ Documentation (README, CONTRIBUTING, CHANGELOG, ROADMAP)
-- ✅ Git-Flow workflow, Kanban task management
+- ✅ GitHub Flow workflow, Kanban task management
 - ✅ Production-quality code (golangci-lint: 0 issues)
 
 **Reader Implementation** (100%):
@@ -105,10 +108,10 @@ v2.0.0 → Only if breaking changes needed
 - ✅ **Race detector working** (Gentoo WSL2 fix) (v0.1.1-beta)
 - ⚠️ Character arrays (partial for v5)
 
-**Quality Metrics** (v0.3.0):
-- ✅ **Grade: A- (Excellent)** - Production Quality ⬆️
-- ✅ Test coverage: 85.4% (+6.9% from v0.2.0)
-- ✅ Tests: 298 passing (100%) (+60 new tests)
+**Quality Metrics** (v0.3.16):
+- ✅ **Grade: A (Excellent)** - Production Quality ⬆️
+- ✅ Test coverage: root 96.9%, internal/v5 97.2%, internal/v73 74.3%, types 100%
+- ✅ Tests: 265 passing (100%), plus a fuzz target for the v5 parser
 - ✅ Linter: 0 errors, 0 warnings
 - ✅ **Race detector: WORKING** (0 races detected)
 - ✅ CI/CD: All checks GREEN ✅
