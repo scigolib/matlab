@@ -781,8 +781,10 @@ func TestValidateDimensions_Overflow(t *testing.T) {
 			expectError: false,
 		},
 		{
+			// Three MaxInt factors overflow the int64 accumulator on every
+			// platform width (two alone still fit on 32-bit).
 			name:        "overflow with huge dimensions",
-			dims:        []int{math.MaxInt / 2, 3}, // (MaxInt/2) * 3 overflows
+			dims:        []int{math.MaxInt, math.MaxInt, math.MaxInt},
 			expectError: true,
 		},
 		{
