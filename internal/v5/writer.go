@@ -40,8 +40,10 @@ type Writer struct {
 //
 // Example:
 //
-//	f, _ := os.Create("output.mat")
-//	defer f.Close()
+//	f, err := os.Create("output.mat")
+//	if err != nil {
+//	    return err
+//	}
 //	writer, err := NewWriter(f, "Created by scigolib/matlab", "IM")
 func NewWriter(w io.Writer, description, endian string) (*Writer, error) {
 	// Validate endian indicator

@@ -24,8 +24,11 @@ type Option func(*config)
 //
 // Example:
 //
-//	writer, _ := matlab.Create("file.mat", matlab.Version5,
+//	writer, err := matlab.Create("file.mat", matlab.Version5,
 //	    matlab.WithEndianness(binary.BigEndian))
+//	if err != nil {
+//	    return err
+//	}
 func WithEndianness(order binary.ByteOrder) Option {
 	return func(c *config) {
 		c.endianness = order
@@ -35,12 +38,15 @@ func WithEndianness(order binary.ByteOrder) Option {
 // WithDescription sets the file description (v5 only, max 116 bytes).
 // If longer than 116 bytes, it will be truncated.
 //
-// Default: "MATLAB MAT-file, created by scigolib/matlab vX.X.X"
+// Default: "MATLAB MAT-file, created by scigolib/matlab"
 //
 // Example:
 //
-//	writer, _ := matlab.Create("file.mat", matlab.Version5,
+//	writer, err := matlab.Create("file.mat", matlab.Version5,
 //	    matlab.WithDescription("Simulation results"))
+//	if err != nil {
+//	    return err
+//	}
 func WithDescription(desc string) Option {
 	return func(c *config) {
 		if len(desc) > 116 {
@@ -59,8 +65,11 @@ func WithDescription(desc string) Option {
 //
 // Example:
 //
-//	writer, _ := matlab.Create("file.mat", matlab.Version73,
+//	writer, err := matlab.Create("file.mat", matlab.Version73,
 //	    matlab.WithCompression(6))
+//	if err != nil {
+//	    return err
+//	}
 func WithCompression(level int) Option {
 	return func(c *config) {
 		if level < 0 {

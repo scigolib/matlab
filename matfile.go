@@ -112,7 +112,10 @@ func parseV73(r io.Reader) (*MatFile, error) {
 //
 // Example:
 //
-//	matFile, _ := matlab.Open(file)
+//	matFile, err := matlab.Open(file)
+//	if err != nil {
+//	    return err
+//	}
 //	data := matFile.GetVariable("mydata")
 //	if data != nil {
 //	    fmt.Println("Found:", data.Name)
@@ -131,7 +134,10 @@ func (m *MatFile) GetVariable(name string) *types.Variable {
 //
 // Example:
 //
-//	matFile, _ := matlab.Open(file)
+//	matFile, err := matlab.Open(file)
+//	if err != nil {
+//	    return err
+//	}
 //	names := matFile.GetVariableNames()
 //	fmt.Println("Variables:", names) // ["x", "y", "z"]
 func (m *MatFile) GetVariableNames() []string {

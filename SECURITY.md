@@ -207,7 +207,9 @@ MATLAB `.mat` files are complex binary formats. This library parses untrusted bi
 - ✅ Sanity checks on dimension sizes, tag lengths, and offsets
 - ✅ 8-byte alignment verification in v5 format
 - ✅ HDF5 signature validation for v7.3 format
-- 🔄 Ongoing fuzzing and security testing (planned for v1.0)
+- ✅ Payload sizes checked against the bytes present before any allocation (v0.3.16)
+- ✅ A stream that ends inside an element is reported as `io.ErrUnexpectedEOF` (v0.3.17)
+- ✅ Fuzz test of the v5 parser (`FuzzParse`)
 
 **User Recommendations**:
 ```go
@@ -250,10 +252,11 @@ Actual data size: huge → buffer overflow
 - Safe integer conversions with overflow checks
 - Maximum reasonable limits enforced
 
-**Current Limits**:
-- Max array dimensions: 2^31 per dimension
-- Max variable name length: 63 bytes (v5), 1KB (v7.3)
-- Max total data size per variable: Limited by available memory
+**Current Limits** (v5 reader):
+- Dimensions: the signed int32 array the format defines, at most 2^31-1 each
+- Element payload: at most 2 GiB, and never more than the bytes present in the input
+- Compressed element: at most 100 MB after decompression, compression ratio at most 1000:1
+- Variable names: no length limit is enforced by the reader
 
 ### 3. v5 Format Specific Risks
 
@@ -291,7 +294,7 @@ Actual data size: huge → buffer overflow
 - Integer overflow in dataset dimensions
 
 **Mitigation**:
-- Relies on `github.com/scigolib/hdf5 v0.13.1` (stable)
+- Relies on `github.com/scigolib/hdf5` (v0.14.3 as of matlab v0.3.17)
 - HDF5 library has comprehensive security mitigations
 - MATLAB_class attributes validated for type safety
 
@@ -384,8 +387,9 @@ if err != nil {
 Set limits when processing untrusted files:
 
 ```go
-// Check variable dimensions before reading
-for _, variable := range matFile.Variables() {
+// Open has already decoded the data, bounded by the file's size.
+// Check dimensions before passing arrays on to further processing.
+for _, variable := range matFile.Variables {
     totalElements := 1
     for _, dim := range variable.Dimensions {
         totalElements *= dim
@@ -395,8 +399,7 @@ for _, variable := range matFile.Variables() {
         return errors.New("array too large")
     }
 
-    // Safe to read now
-    data := variable.Data
+    process(variable.Data)
 }
 ```
 
@@ -407,7 +410,7 @@ Always check errors - parsing failures may indicate malicious files:
 ```go
 // ❌ BAD - Ignoring errors
 matFile, _ := matlab.Open(file)
-variables := matFile.Variables()
+variables := matFile.Variables
 
 // ✅ GOOD - Proper error handling
 matFile, err := matlab.Open(file)
@@ -415,7 +418,7 @@ if err != nil {
     return fmt.Errorf("file open failed: %w", err)
 }
 
-variables := matFile.Variables()
+variables := matFile.Variables
 if len(variables) == 0 {
     return errors.New("no variables found")
 }
@@ -455,13 +458,17 @@ writer, err := matlab.Create(filename, matlab.Version5)
 if err != nil {
     return err
 }
-defer writer.Close()
 
-err = writer.WriteVariable(&matlab.Variable{
+err = writer.WriteVariable(&types.Variable{
     Name:       name,
     Dimensions: dims,
+    DataType:   types.Double,
     Data:       data,
 })
+if err != nil {
+    return errors.Join(err, writer.Close())
+}
+return writer.Close()
 ```
 
 ## Known Security Considerations
@@ -502,20 +509,20 @@ err = writer.WriteVariable(&matlab.Variable{
 **Description**: v7.3 files rely on HDF5 library. Any HDF5 vulnerability affects v7.3 parsing.
 
 **Mitigation**:
-- Use latest stable HDF5 library (v0.13.1)
+- Each release depends on the latest HDF5 library release (v0.14.3 as of v0.3.17)
 - HDF5 library has comprehensive security testing
-- Monitor HDF5 library security advisories
+- Monitor HDF5 library [security advisories](https://github.com/scigolib/hdf5/security/advisories)
 
 ### 4. Dependency Security
 
 MATLAB File Reader/Writer dependencies:
 
-- `github.com/scigolib/hdf5 v0.13.1` (stable) - v7.3 format support
+- `github.com/scigolib/hdf5` (v0.14.3 as of v0.3.17) - v7.3 format support
 - `github.com/stretchr/testify` (dev only) - Testing
 
 **Monitoring**:
-- ✅ Using stable HDF5 version (v0.13.1)
-- 🔄 Dependabot enabled (when fully public)
+- ✅ HDF5 dependency updated with each HDF5 release
+- ✅ Dependabot alerts enabled
 - ✅ No C dependencies (pure Go + HDF5 Go library)
 
 ## Security Testing
@@ -527,15 +534,29 @@ MATLAB File Reader/Writer dependencies:
 - ✅ Round-trip tests (write → read → verify)
 - ✅ Linting with 34+ security-focused linters
 - ✅ Race detector (0 data races)
+- ✅ Fuzz test of the v5 parser (`go test -fuzz FuzzParse ./internal/v5/`)
+- ✅ 32-bit builds in CI (`linux/386`, `linux/arm`, `windows/386`), plus `go vet` and tests on `linux/386`
 
 ### Planned for v1.0
 
-- 🔄 Fuzzing with go-fuzz (v5 parser, tag parsing)
 - 🔄 Static analysis with gosec
 - 🔄 SAST/DAST scanning in CI
 - 🔄 Comparison testing against MATLAB/Octave
 
 ## Security Disclosure History
+
+### v0.3.16 (2026-10-22)
+
+**Unchecked allocations sized from file metadata** (High, the class fixed in
+hdf5 v0.14.2, [GHSA-8p88-h28q-w6m9](https://github.com/scigolib/hdf5/security/advisories/GHSA-8p88-h28q-w6m9))
+   - **Affected**: v0.3.15 and earlier
+   - **Fixed in**: v0.3.16
+   - **Type**: Memory Exhaustion / DoS; a panic on 32-bit targets
+   - **Description**: v5 element payloads, matrix sub-elements and compressed
+     elements were allocated at the size the file claimed before any byte was
+     read, so a file of a few hundred bytes could claim up to 2 GiB. Sizes are
+     now validated against the bytes present.
+   - **Credit**: Internal review
 
 ### v0.3.0 (2025-11-21)
 
