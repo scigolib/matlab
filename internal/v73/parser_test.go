@@ -114,8 +114,6 @@ func TestParser_Parse_AllTypes(t *testing.T) {
 }
 
 func TestParser_Parse_ComplexVariable(t *testing.T) {
-	t.Skip("Skipped: v73 writer bug - datasets not closed properly (separate issue)")
-
 	realPart := []float64{1.0, 2.0, 3.0}
 	imagPart := []float64{4.0, 5.0, 6.0}
 
@@ -174,8 +172,6 @@ func TestParser_Parse_ComplexVariable(t *testing.T) {
 }
 
 func TestParser_Parse_MultipleVariables(t *testing.T) {
-	t.Skip("Skipped: HDF5 reader limitation - cannot read files with multiple datasets (separate issue)")
-
 	vars := []*types.Variable{
 		{
 			Name:       "x",
