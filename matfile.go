@@ -28,17 +28,20 @@ type MatFile struct {
 
 // Open reads and parses a MAT-file from an io.Reader.
 func Open(r io.Reader) (*MatFile, error) {
+	// The stream size must be taken before anything is read: a reader that
+	// only reports Len (bytes.Buffer) tells the unread remainder, so a size
+	// taken after the header would understate the file by 128 bytes. It must
+	// also be taken before the header is prepended, since io.MultiReader hides
+	// it. The v5 parser needs the real bound to validate element sizes against
+	// the bytes actually present (ADR-003); an unknown size leaves only the
+	// absolute payload cap as a bound.
+	streamSize, _ := v5.ReaderSize(r)
+
 	// Read and check the first 128 bytes to determine format
 	header := make([]byte, 128)
 	if _, err := io.ReadFull(r, header); err != nil {
 		return nil, err
 	}
-
-	// The stream size must be taken before the header is prepended:
-	// io.MultiReader hides it, and the v5 parser needs the real bound to
-	// validate element sizes against the bytes actually present (ADR-003).
-	// An unknown size leaves only the absolute payload cap as a bound.
-	streamSize, _ := v5.ReaderSize(r)
 
 	// Create a MultiReader to re-include the header
 	fullReader := io.MultiReader(bytes.NewReader(header), r)

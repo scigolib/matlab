@@ -41,6 +41,10 @@ const maxInt = int(^uint(0) >> 1)
 // store reports the whole store, and a file may be truncated after the call.
 // An over-stated bound only weakens the check; it never lets an allocation
 // exceed the real input.
+//
+// A reader that only reports Len (*bytes.Buffer) gives its unread remainder,
+// which shrinks as it is read: measure before reading anything from it, or the
+// bound is too small and valid input is rejected.
 func ReaderSize(r io.Reader) (int64, bool) {
 	if isNilReader(r) {
 		return 0, false
@@ -103,8 +107,10 @@ func (p *Parser) validatePayload(size uint32) error {
 	if p.limit > 0 {
 		remaining := p.limit - p.pos
 		if remaining < 0 || int64(size) > remaining {
-			return fmt.Errorf("tag size beyond end of file: %d bytes at offset %d, %d available",
-				size, p.pos-8, remaining)
+			// The same truncation an unknown-length stream reports from its
+			// read, caught here before reading: callers test for one error.
+			return fmt.Errorf("tag size beyond end of file: %d bytes at offset %d, %d available: %w",
+				size, p.pos-8, remaining, io.ErrUnexpectedEOF)
 		}
 	}
 
