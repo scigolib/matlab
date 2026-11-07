@@ -1,7 +1,11 @@
-## [Unreleased]
+## [0.3.19] - 2026-11-07
 
-### Added
-- v7.3 files are written with MATLAB's 512-byte MAT header (a user block in front of the HDF5 data), as matio does. Requires github.com/scigolib/hdf5 v0.15.0 (the go.mod bump is pending its release)
+### Fixed
+- **v7.3 files were written without the MAT header MATLAB expects** (issue #21 reported v7.3 files as unreadable by MATLAB too; the v0.3.15 answer covered only v5). MATLAB writes a v7.3 MAT-file as HDF5 behind a 512-byte user block whose first 128 bytes are the MAT header (`MATLAB 7.3 MAT-file, …`, version 0x0200, `IM`); ours started with the HDF5 signature. The writer now reserves the block and writes the header the way matio's `Mat_Create73` does. The header text uses MATLAB's own wording and always fits its 116 bytes. Loading the files in MATLAB itself is not verified (no MATLAB available); `h5dump` opens them
+
+### Changed
+- **HDF5 dependency**: v0.14.3 → v0.15.0 (adds user blocks: `WithUserBlock`, `FileWriter.WriteUserBlock`, the equivalent of the C library's `H5Pset_userblock`)
+- `testdata/generated` regenerated with the header; the user-block detection test now prepends the block to the headerless legacy file
 
 ---
 
