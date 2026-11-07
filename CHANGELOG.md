@@ -1,3 +1,26 @@
+## [0.3.17] - 2026-11-07
+
+### Fixed
+- **v5 files opened from a `bytes.Buffer` were rejected** (regression in v0.3.16): `Open` measured the input size after reading the 128-byte header, and a `bytes.Buffer` reports only its unread remainder, so the bound was 128 bytes short and valid files failed with "tag size beyond end of file". The size is now taken before anything is read
+- **Truncated v5 streams were accepted as complete**: the bytes the parser skips (the data of an element of unknown type, and the padding after every regular element) were discarded without checking the read, so a stream of unknown length cut inside them parsed "successfully" and the cut element silently disappeared. Such a stream is now an error with the offset
+- **A truncated v5 file reports `io.ErrUnexpectedEOF` on every path**: whether the size check catches the cut before reading (known length) or the read itself does (unknown length), the error wraps `io.ErrUnexpectedEOF`; a short payload read no longer reports a bare `io.EOF`
+- **Testable examples ignored errors** (22 sites): when opening the sample file failed, `ExampleOpen` and `ExampleVariable_Data_simple` crashed with a nil dereference or an index out of range instead of reporting the cause. Every example now checks every error, closes writers explicitly and writes into its own temporary directory; the code samples in the README and in the package documentation do the same
+- **v7.3 test files** in `testdata/generated` were written by matlab v0.1.0-beta on hdf5-go v0.11.4-beta, in a form the HDF5 C tools cannot open (a CRC32 superblock checksum, object headers without a valid checksum, an early datatype encoding), and `complex.mat` was corrupt on every HDF5 version. They are regenerated with the current writer; `h5dump` 1.14.6 opens all eight
+- `scripts/generate-testdata` reported success when a file failed to write; it now exits with an error
+
+### Changed
+- **HDF5 dependency**: v0.14.2 → v0.14.3 (strict superblock, object-header and datatype checks as in the HDF5 C library, with an exact legacy path: files written by hdf5-go v0.13.9 and earlier still read, and each such structure is reported by `File.Warnings()`; v0.14.3 retracts v0.9.0-beta through v0.13.9)
+- `go.yaml.in/yaml/v3` v3.0.5 → v3.0.6 (indirect, test-only via testify)
+- **Documentation corrected against the code**: the README no longer lists structures, cell arrays and sparse matrices as read. v5 structures and cell arrays report their class only, a v7.3 structure comes back as one variable per field, and sparse matrices are not decoded. It states that v7.3 complex arrays use a group layout, not MATLAB's compound layout, and documents the 100 MB limit per decompressed v5 element. CONTRIBUTING describes the GitHub Flow the project uses instead of Git-Flow; SECURITY.md lists the v0.3.16 fix, the reader's real limits and current dependencies
+
+### Added
+- `TestGeneratedFixtures_NoHDF5Warnings`: every generated v7.3 test file must open in the HDF5 library without a warning, so stale test files are caught
+- `testdata/legacy` with one file written by matlab v0.1.0-beta, and `TestOpen_LegacyHDF5GoFile`: files written by early releases keep reading correctly
+- Five v7.3 tests (complex variables, several variables per file) that were skipped for HDF5 limitations fixed since then run again
+- `TestOpen_EveryReaderKind` and `TestOpen_TruncatedFileIsUnexpectedEOF`: the reference and test files, whole and cut short, through `os.File`, `bytes.Reader`, `bytes.Buffer` and a reader of unknown size
+
+---
+
 ## [0.3.16] - 2026-10-22
 
 ### Fixed
@@ -262,9 +285,7 @@
 - `types/variable_test.go` - Type-safe getter tests (349 lines)
 
 **Documentation**:
-- `.claude/LINTER_RULES.md` - Comprehensive linter rules and patterns
-- `docs/dev/research/GO_API_BEST_PRACTICES_2025.md` - Modern Go API design guide
-- `docs/dev/PRODUCTION_READINESS_v0.3.0.md` - Production quality checklist
+- Linter rules, an API design review and a production-readiness checklist (maintainer notes, not published)
 - All examples now executable and verified
 
 ### What's Included
@@ -462,4 +483,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-*Last Updated: 2025-11-02*
+*Last Updated: 2026-11-07*
