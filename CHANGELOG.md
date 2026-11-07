@@ -1,3 +1,10 @@
+## [Unreleased]
+
+### Added
+- v7.3 files are written with MATLAB's 512-byte MAT header (a user block in front of the HDF5 data), as matio does. Requires github.com/scigolib/hdf5 v0.15.0 (the go.mod bump is pending its release)
+
+---
+
 ## [0.3.18] - 2026-11-07
 
 ### Fixed

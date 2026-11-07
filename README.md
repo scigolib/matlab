@@ -254,9 +254,9 @@ named by its path (`/s/a`), not as one `Struct` variable.
 - No structures/cell arrays writing (planned for v0.5.0+)
 - v7.3 complex arrays use the group layout described above, not MATLAB's
   compound layout
-- v7.3 files are written without the 512-byte MAT header MATLAB puts in front
-  of its own v7.3 files; whether MATLAB loads them is not verified yet. The
-  header needs user-block support in the HDF5 library, which is in progress
+- v7.3 files carry the 512-byte MAT header MATLAB writes in front of its own
+  v7.3 files; loading them in MATLAB itself is not verified yet (no MATLAB
+  available)
 
 ### Reader Limitations
 - Structures and cell arrays are not decoded: v5 reports the class only, a v7.3
