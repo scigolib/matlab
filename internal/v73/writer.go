@@ -2,8 +2,10 @@
 package v73
 
 import (
+	"errors"
 	"fmt"
 	"math"
+	"time"
 
 	"github.com/scigolib/hdf5"
 	"github.com/scigolib/matlab/types"
@@ -31,12 +33,34 @@ type Writer struct {
 //   - error: If file creation fails
 func NewWriter(filename string) (*Writer, error) {
 	// Create HDF5 file with truncate mode (overwrite if exists)
-	file, err := hdf5.CreateForWrite(filename, hdf5.CreateTruncate)
+	// The 512-byte user block carries the MAT header MATLAB expects in front
+	// of the HDF5 data (see header.go).
+	file, err := hdf5.CreateForWrite(filename, hdf5.CreateTruncate, hdf5.WithUserBlock(userBlockSize))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create HDF5 file: %w", err)
 	}
 
+	if err := writeMATHeader(file, time.Now()); err != nil {
+		return nil, err
+	}
+
 	return &Writer{file: file}, nil
+}
+
+// userBlockFile is the part of *hdf5.FileWriter that writeMATHeader needs.
+type userBlockFile interface {
+	WriteUserBlock(data []byte) error
+	Close() error
+}
+
+// writeMATHeader writes the MAT header into the file's user block. On failure
+// the file is closed, so a half-created file is not left open, and both errors
+// are returned.
+func writeMATHeader(f userBlockFile, now time.Time) error {
+	if err := f.WriteUserBlock(matHeader73(now)); err != nil {
+		return errors.Join(fmt.Errorf("failed to write MAT header: %w", err), f.Close())
+	}
+	return nil
 }
 
 // WriteVariable writes a MATLAB variable as HDF5 dataset with proper attributes.

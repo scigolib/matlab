@@ -44,14 +44,19 @@ func openBytes(t *testing.T, data []byte) *MatFile {
 	return mf
 }
 
-// TestOpen_MATLABv73UserBlock opens every file our v7.3 writer produced with a
-// MATLAB-style 512-byte user block prepended (the layout MATLAB itself writes,
-// HDF5 signature at offset 512) and expects the same content as the plain file.
+// TestOpen_MATLABv73UserBlock prepends a MATLAB-style 512-byte user block to a
+// headerless HDF5 file (the layout MATLAB itself writes, HDF5 signature at
+// offset 512) and expects the same content as the plain file. The legacy
+// fixture is the one file we have that starts with the HDF5 signature.
 func TestOpen_MATLABv73UserBlock(t *testing.T) {
-	files, err := filepath.Glob(filepath.Join("testdata", "generated", "*.mat"))
-	if err != nil || len(files) == 0 {
-		t.Fatalf("no generated test files: %v", err)
+	orig, err := os.ReadFile(filepath.Join("testdata", "legacy", "simple_double_hdf5go_v0.11.mat"))
+	if err != nil {
+		t.Fatal(err)
 	}
+	if !bytes.HasPrefix(orig, []byte("\x89HDF\r\n\x1a\n")) {
+		t.Fatal("legacy fixture does not start with the HDF5 signature")
+	}
+	want := openBytes(t, orig)
 
 	cases := []struct {
 		name    string
@@ -62,24 +67,46 @@ func TestOpen_MATLABv73UserBlock(t *testing.T) {
 		{"big-endian MI", 0x0200, "MI"},
 	}
 
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			data := append(matlabUserBlock(t, tc.version, tc.endian), orig...)
+			got := openBytes(t, data)
+
+			if got.Version != "7.3" {
+				t.Errorf("Version = %q, want 7.3", got.Version)
+			}
+			compareVariables(t, got, want)
+		})
+	}
+}
+
+// TestGeneratedFixtures_CarryMATHeader checks that every regenerated v7.3
+// fixture starts with the MAT header and has the HDF5 data at offset 512.
+func TestGeneratedFixtures_CarryMATHeader(t *testing.T) {
+	files, err := filepath.Glob(filepath.Join("testdata", "generated", "*.mat"))
+	if err != nil || len(files) == 0 {
+		t.Fatalf("no generated test files: %v", err)
+	}
+
 	for _, file := range files {
-		orig, err := os.ReadFile(file)
-		if err != nil {
-			t.Fatal(err)
-		}
-		want := openBytes(t, orig)
-
-		for _, tc := range cases {
-			t.Run(filepath.Base(file)+"/"+tc.name, func(t *testing.T) {
-				data := append(matlabUserBlock(t, tc.version, tc.endian), orig...)
-				got := openBytes(t, data)
-
-				if got.Version != "7.3" {
-					t.Errorf("Version = %q, want 7.3", got.Version)
-				}
-				compareVariables(t, got, want)
-			})
-		}
+		t.Run(filepath.Base(file), func(t *testing.T) {
+			raw, err := os.ReadFile(file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(raw) < 520 {
+				t.Fatalf("file is %d bytes", len(raw))
+			}
+			if !bytes.HasPrefix(raw, []byte("MATLAB 7.3 MAT-file")) {
+				t.Errorf("header text = %q", raw[:19])
+			}
+			if !bytes.Equal(raw[124:128], []byte{0x00, 0x02, 'I', 'M'}) {
+				t.Errorf("version/endian = % x", raw[124:128])
+			}
+			if !bytes.Equal(raw[512:520], []byte("\x89HDF\r\n\x1a\n")) {
+				t.Errorf("bytes 512-519 = % x, want HDF5 signature", raw[512:520])
+			}
+		})
 	}
 }
 
