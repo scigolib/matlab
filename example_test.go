@@ -1,7 +1,10 @@
 // Package matlab_test provides testable examples for the MATLAB file library.
 //
 // These examples demonstrate common use cases and serve as both documentation
-// and verification that the API works as expected.
+// and verification that the API works as expected. Every error is checked:
+// examples are the code users copy. They panic on an error instead of calling
+// log.Fatal, so the deferred cleanup (temporary directories, open files) still
+// runs and the failing example reports the error.
 package matlab_test
 
 import (
@@ -16,20 +19,33 @@ import (
 
 // Example demonstrates basic usage of the MATLAB file library.
 func Example() {
-	tmpfile := filepath.Join(os.TempDir(), "example.mat")
-	defer os.Remove(tmpfile)
+	dir, err := os.MkdirTemp("", "matlab-example-")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(dir)
 
 	// Create a simple v5 MATLAB file
-	writer, _ := matlab.Create(tmpfile, matlab.Version5)
-	defer writer.Close()
+	writer, err := matlab.Create(filepath.Join(dir, "example.mat"), matlab.Version5)
+	if err != nil {
+		panic(err)
+	}
 
 	// Write a variable
-	writer.WriteVariable(&types.Variable{
+	err = writer.WriteVariable(&types.Variable{
 		Name:       "data",
 		Dimensions: []int{3},
 		DataType:   types.Double,
 		Data:       []float64{1.0, 2.0, 3.0},
 	})
+	if err != nil {
+		panic(err)
+	}
+
+	// Close writes the remaining data: its error must be checked too.
+	if err := writer.Close(); err != nil {
+		panic(err)
+	}
 
 	fmt.Println("MATLAB file created successfully")
 	// Output:
@@ -38,14 +54,19 @@ func Example() {
 
 // ExampleCreate demonstrates creating a MATLAB file.
 func ExampleCreate() {
-	tmpfile := filepath.Join(os.TempDir(), "example_create.mat")
-	defer os.Remove(tmpfile)
-
-	writer, err := matlab.Create(tmpfile, matlab.Version5)
+	dir, err := os.MkdirTemp("", "matlab-example-")
 	if err != nil {
 		panic(err)
 	}
-	defer writer.Close()
+	defer os.RemoveAll(dir)
+
+	writer, err := matlab.Create(filepath.Join(dir, "example_create.mat"), matlab.Version5)
+	if err != nil {
+		panic(err)
+	}
+	if err := writer.Close(); err != nil {
+		panic(err)
+	}
 
 	fmt.Println("File created")
 	// Output:
@@ -54,18 +75,29 @@ func ExampleCreate() {
 
 // ExampleCreate_v5 demonstrates creating a v5 format file.
 func ExampleCreate_v5() {
-	tmpfile := filepath.Join(os.TempDir(), "example_v5.mat")
-	defer os.Remove(tmpfile)
+	dir, err := os.MkdirTemp("", "matlab-example-")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(dir)
 
-	writer, _ := matlab.Create(tmpfile, matlab.Version5)
-	defer writer.Close()
+	writer, err := matlab.Create(filepath.Join(dir, "example_v5.mat"), matlab.Version5)
+	if err != nil {
+		panic(err)
+	}
 
-	writer.WriteVariable(&types.Variable{
+	err = writer.WriteVariable(&types.Variable{
 		Name:       "matrix",
 		Dimensions: []int{2, 3},
 		DataType:   types.Double,
 		Data:       []float64{1, 2, 3, 4, 5, 6},
 	})
+	if err != nil {
+		panic(err)
+	}
+	if err := writer.Close(); err != nil {
+		panic(err)
+	}
 
 	fmt.Println("v5 file created")
 	// Output:
@@ -74,18 +106,29 @@ func ExampleCreate_v5() {
 
 // ExampleCreate_v73 demonstrates creating a v7.3 HDF5 format file.
 func ExampleCreate_v73() {
-	tmpfile := filepath.Join(os.TempDir(), "example_v73.mat")
-	defer os.Remove(tmpfile)
+	dir, err := os.MkdirTemp("", "matlab-example-")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(dir)
 
-	writer, _ := matlab.Create(tmpfile, matlab.Version73)
-	defer writer.Close()
+	writer, err := matlab.Create(filepath.Join(dir, "example_v73.mat"), matlab.Version73)
+	if err != nil {
+		panic(err)
+	}
 
-	writer.WriteVariable(&types.Variable{
+	err = writer.WriteVariable(&types.Variable{
 		Name:       "data",
 		Dimensions: []int{100},
 		DataType:   types.Double,
 		Data:       make([]float64, 100),
 	})
+	if err != nil {
+		panic(err)
+	}
+	if err := writer.Close(); err != nil {
+		panic(err)
+	}
 
 	fmt.Println("v7.3 file created")
 	// Output:
@@ -94,10 +137,16 @@ func ExampleCreate_v73() {
 
 // ExampleOpen demonstrates reading a MATLAB file.
 func ExampleOpen() {
-	file, _ := os.Open("testdata/generated/simple_double.mat")
+	file, err := os.Open("testdata/generated/simple_double.mat")
+	if err != nil {
+		panic(err)
+	}
 	defer file.Close()
 
-	matFile, _ := matlab.Open(file)
+	matFile, err := matlab.Open(file)
+	if err != nil {
+		panic(err)
+	}
 
 	fmt.Printf("Found %d variable(s)\n", len(matFile.Variables))
 	// Output:
@@ -106,10 +155,16 @@ func ExampleOpen() {
 
 // ExampleMatFile_Variables demonstrates iterating over variables.
 func ExampleMatFile_Variables() {
-	file, _ := os.Open("testdata/generated/simple_double.mat")
+	file, err := os.Open("testdata/generated/simple_double.mat")
+	if err != nil {
+		panic(err)
+	}
 	defer file.Close()
 
-	matFile, _ := matlab.Open(file)
+	matFile, err := matlab.Open(file)
+	if err != nil {
+		panic(err)
+	}
 
 	for _, v := range matFile.Variables {
 		fmt.Printf("Variable: %s, Type: %v\n", v.Name, v.DataType)
@@ -120,41 +175,61 @@ func ExampleMatFile_Variables() {
 
 // ExampleMatFileWriter_WriteVariable demonstrates writing a simple array.
 func ExampleMatFileWriter_WriteVariable() {
-	tmpfile := filepath.Join(os.TempDir(), "example_array.mat")
-	defer os.Remove(tmpfile)
+	dir, err := os.MkdirTemp("", "matlab-example-")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(dir)
 
-	writer, _ := matlab.Create(tmpfile, matlab.Version5)
-	defer writer.Close()
+	writer, err := matlab.Create(filepath.Join(dir, "example_array.mat"), matlab.Version5)
+	if err != nil {
+		panic(err)
+	}
 
-	err := writer.WriteVariable(&types.Variable{
+	err = writer.WriteVariable(&types.Variable{
 		Name:       "mydata",
 		Dimensions: []int{5},
 		DataType:   types.Double,
 		Data:       []float64{1.0, 2.0, 3.0, 4.0, 5.0},
 	})
-
-	if err == nil {
-		fmt.Println("Variable written")
+	if err != nil {
+		panic(err)
 	}
+	if err := writer.Close(); err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Variable written")
 	// Output:
 	// Variable written
 }
 
 // ExampleMatFileWriter_WriteVariable_matrix demonstrates writing a 2D matrix.
 func ExampleMatFileWriter_WriteVariable_matrix() {
-	tmpfile := filepath.Join(os.TempDir(), "example_matrix.mat")
-	defer os.Remove(tmpfile)
+	dir, err := os.MkdirTemp("", "matlab-example-")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(dir)
 
-	writer, _ := matlab.Create(tmpfile, matlab.Version5)
-	defer writer.Close()
+	writer, err := matlab.Create(filepath.Join(dir, "example_matrix.mat"), matlab.Version5)
+	if err != nil {
+		panic(err)
+	}
 
 	// 3x4 matrix in column-major order (MATLAB standard)
-	writer.WriteVariable(&types.Variable{
+	err = writer.WriteVariable(&types.Variable{
 		Name:       "A",
 		Dimensions: []int{3, 4},
 		DataType:   types.Double,
 		Data:       []float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
 	})
+	if err != nil {
+		panic(err)
+	}
+	if err := writer.Close(); err != nil {
+		panic(err)
+	}
 
 	fmt.Println("Matrix written")
 	// Output:
@@ -163,24 +238,35 @@ func ExampleMatFileWriter_WriteVariable_matrix() {
 
 // ExampleMatFileWriter_WriteVariable_complex demonstrates writing complex numbers.
 func ExampleMatFileWriter_WriteVariable_complex() {
-	tmpfile := filepath.Join(os.TempDir(), "example_complex.mat")
-	defer os.Remove(tmpfile)
+	dir, err := os.MkdirTemp("", "matlab-example-")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(dir)
 
-	writer, _ := matlab.Create(tmpfile, matlab.Version73)
-	defer writer.Close()
+	writer, err := matlab.Create(filepath.Join(dir, "example_complex.mat"), matlab.Version73)
+	if err != nil {
+		panic(err)
+	}
 
 	complexData := &types.NumericArray{
 		Real: []float64{1.0, 2.0, 3.0},
 		Imag: []float64{4.0, 5.0, 6.0},
 	}
 
-	writer.WriteVariable(&types.Variable{
+	err = writer.WriteVariable(&types.Variable{
 		Name:       "signal",
 		Dimensions: []int{3},
 		DataType:   types.Double,
 		Data:       complexData,
 		IsComplex:  true,
 	})
+	if err != nil {
+		panic(err)
+	}
+	if err := writer.Close(); err != nil {
+		panic(err)
+	}
 
 	fmt.Println("Complex variable written")
 	// Output:
@@ -189,18 +275,29 @@ func ExampleMatFileWriter_WriteVariable_complex() {
 
 // ExampleMatFileWriter_WriteVariable_int32 demonstrates writing integer data.
 func ExampleMatFileWriter_WriteVariable_int32() {
-	tmpfile := filepath.Join(os.TempDir(), "example_integers.mat")
-	defer os.Remove(tmpfile)
+	dir, err := os.MkdirTemp("", "matlab-example-")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(dir)
 
-	writer, _ := matlab.Create(tmpfile, matlab.Version5)
-	defer writer.Close()
+	writer, err := matlab.Create(filepath.Join(dir, "example_integers.mat"), matlab.Version5)
+	if err != nil {
+		panic(err)
+	}
 
-	writer.WriteVariable(&types.Variable{
+	err = writer.WriteVariable(&types.Variable{
 		Name:       "counts",
 		Dimensions: []int{4},
 		DataType:   types.Int32,
 		Data:       []int32{10, 20, 30, 40},
 	})
+	if err != nil {
+		panic(err)
+	}
+	if err := writer.Close(); err != nil {
+		panic(err)
+	}
 
 	fmt.Println("Integer array written")
 	// Output:
@@ -209,14 +306,27 @@ func ExampleMatFileWriter_WriteVariable_int32() {
 
 // ExampleVariable_Data_simple demonstrates accessing simple numeric data.
 func ExampleVariable_Data_simple() {
-	file, _ := os.Open("testdata/generated/simple_double.mat")
+	file, err := os.Open("testdata/generated/simple_double.mat")
+	if err != nil {
+		panic(err)
+	}
 	defer file.Close()
 
-	matFile, _ := matlab.Open(file)
-	variable := matFile.Variables[0]
+	matFile, err := matlab.Open(file)
+	if err != nil {
+		panic(err)
+	}
+
+	variable := matFile.GetVariable("data")
+	if variable == nil {
+		panic("variable \"data\" not found")
+	}
 
 	// Simple arrays are stored directly
-	data := variable.Data.([]float64)
+	data, ok := variable.Data.([]float64)
+	if !ok {
+		panic(fmt.Sprintf("data is %T, want []float64", variable.Data))
+	}
 	fmt.Printf("First value: %.1f\n", data[0])
 	// Output:
 	// First value: 1.0
@@ -240,25 +350,50 @@ func ExampleVariable_Data_complex() {
 
 // ExampleOpen_roundTrip demonstrates writing and reading back data.
 func ExampleOpen_roundTrip() {
-	tmpfile := filepath.Join(os.TempDir(), "example_roundtrip.mat")
-	defer os.Remove(tmpfile)
+	dir, err := os.MkdirTemp("", "matlab-example-")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(dir)
+	path := filepath.Join(dir, "example_roundtrip.mat")
 
 	// Write
-	writer, _ := matlab.Create(tmpfile, matlab.Version5)
-	writer.WriteVariable(&types.Variable{
+	writer, err := matlab.Create(path, matlab.Version5)
+	if err != nil {
+		panic(err)
+	}
+	err = writer.WriteVariable(&types.Variable{
 		Name:       "test",
 		Dimensions: []int{2},
 		DataType:   types.Double,
 		Data:       []float64{3.14, 2.71},
 	})
-	writer.Close()
+	if err != nil {
+		panic(err)
+	}
+	if err := writer.Close(); err != nil {
+		panic(err)
+	}
 
 	// Read
-	file, _ := os.Open(tmpfile)
+	file, err := os.Open(path)
+	if err != nil {
+		panic(err)
+	}
 	defer file.Close()
 
-	matFile, _ := matlab.Open(file)
-	data := matFile.Variables[0].Data.([]float64)
+	matFile, err := matlab.Open(file)
+	if err != nil {
+		panic(err)
+	}
+	variable := matFile.GetVariable("test")
+	if variable == nil {
+		panic("variable \"test\" not found")
+	}
+	data, ok := variable.Data.([]float64)
+	if !ok {
+		panic(fmt.Sprintf("test is %T, want []float64", variable.Data))
+	}
 
 	fmt.Printf("Read back: %.2f, %.2f\n", data[0], data[1])
 	// Output:
@@ -267,30 +402,41 @@ func ExampleOpen_roundTrip() {
 
 // ExampleOpen_multipleVariables demonstrates handling multiple variables.
 func ExampleOpen_multipleVariables() {
-	tmpfile := filepath.Join(os.TempDir(), "example_multi.mat")
-	defer os.Remove(tmpfile)
+	dir, err := os.MkdirTemp("", "matlab-example-")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(dir)
+	path := filepath.Join(dir, "example_multi.mat")
 
 	// Write multiple variables
-	writer, _ := matlab.Create(tmpfile, matlab.Version5)
-	writer.WriteVariable(&types.Variable{
-		Name:       "x",
-		Dimensions: []int{3},
-		DataType:   types.Double,
-		Data:       []float64{1, 2, 3},
-	})
-	writer.WriteVariable(&types.Variable{
-		Name:       "y",
-		Dimensions: []int{3},
-		DataType:   types.Double,
-		Data:       []float64{4, 5, 6},
-	})
-	writer.Close()
+	writer, err := matlab.Create(path, matlab.Version5)
+	if err != nil {
+		panic(err)
+	}
+	for _, v := range []*types.Variable{
+		{Name: "x", Dimensions: []int{3}, DataType: types.Double, Data: []float64{1, 2, 3}},
+		{Name: "y", Dimensions: []int{3}, DataType: types.Double, Data: []float64{4, 5, 6}},
+	} {
+		if err := writer.WriteVariable(v); err != nil {
+			panic(err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		panic(err)
+	}
 
 	// Read all variables
-	file, _ := os.Open(tmpfile)
+	file, err := os.Open(path)
+	if err != nil {
+		panic(err)
+	}
 	defer file.Close()
 
-	matFile, _ := matlab.Open(file)
+	matFile, err := matlab.Open(file)
+	if err != nil {
+		panic(err)
+	}
 	fmt.Printf("Total variables: %d\n", len(matFile.Variables))
 	for _, v := range matFile.Variables {
 		fmt.Printf("- %s\n", v.Name)
@@ -303,14 +449,22 @@ func ExampleOpen_multipleVariables() {
 
 // ExampleCreate_withOptions demonstrates using functional options.
 func ExampleCreate_withOptions() {
-	tmpfile := filepath.Join(os.TempDir(), "options.mat")
-	defer os.Remove(tmpfile)
+	dir, err := os.MkdirTemp("", "matlab-example-")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(dir)
 
-	writer, _ := matlab.Create(tmpfile, matlab.Version5,
+	writer, err := matlab.Create(filepath.Join(dir, "options.mat"), matlab.Version5,
 		matlab.WithEndianness(binary.BigEndian),
 		matlab.WithDescription("Simulation results"),
 	)
-	defer writer.Close()
+	if err != nil {
+		panic(err)
+	}
+	if err := writer.Close(); err != nil {
+		panic(err)
+	}
 
 	fmt.Println("File created with custom options")
 	// Output:
@@ -319,13 +473,21 @@ func ExampleCreate_withOptions() {
 
 // ExampleWithEndianness demonstrates setting byte order.
 func ExampleWithEndianness() {
-	tmpfile := filepath.Join(os.TempDir(), "bigendian.mat")
-	defer os.Remove(tmpfile)
+	dir, err := os.MkdirTemp("", "matlab-example-")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(dir)
 
-	writer, _ := matlab.Create(tmpfile, matlab.Version5,
+	writer, err := matlab.Create(filepath.Join(dir, "bigendian.mat"), matlab.Version5,
 		matlab.WithEndianness(binary.BigEndian),
 	)
-	defer writer.Close()
+	if err != nil {
+		panic(err)
+	}
+	if err := writer.Close(); err != nil {
+		panic(err)
+	}
 
 	fmt.Println("Big-endian file created")
 	// Output:
@@ -334,13 +496,21 @@ func ExampleWithEndianness() {
 
 // ExampleWithDescription demonstrates custom file description.
 func ExampleWithDescription() {
-	tmpfile := filepath.Join(os.TempDir(), "described.mat")
-	defer os.Remove(tmpfile)
+	dir, err := os.MkdirTemp("", "matlab-example-")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(dir)
 
-	writer, _ := matlab.Create(tmpfile, matlab.Version5,
+	writer, err := matlab.Create(filepath.Join(dir, "described.mat"), matlab.Version5,
 		matlab.WithDescription("My experimental data from 2025"),
 	)
-	defer writer.Close()
+	if err != nil {
+		panic(err)
+	}
+	if err := writer.Close(); err != nil {
+		panic(err)
+	}
 
 	fmt.Println("File with custom description created")
 	// Output:
