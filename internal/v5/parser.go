@@ -127,7 +127,9 @@ func (p *Parser) Parse() (*Mat5File, error) {
 				file.Variables = append(file.Variables, variable)
 			}
 		default:
-			p.skipData(tag)
+			if err := p.skipData(tag); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -287,29 +289,26 @@ func (p *Parser) readData(tag *DataTag) ([]byte, error) {
 	p.pos += int64(tag.Size)
 
 	// Skip padding to 8-byte boundary
-	padding := (8 - tag.Size%8) % 8
-	if padding > 0 {
-		_, _ = io.CopyN(io.Discard, p.r, int64(padding))
-		p.pos += int64(padding)
+	if err := p.skip(int64(alignPadding(tag.Size))); err != nil {
+		return nil, err
 	}
 
 	return data, nil
 }
 
 // skipData skips over data for a given tag.
-func (p *Parser) skipData(tag *DataTag) {
+func (p *Parser) skipData(tag *DataTag) error {
 	// For small format, data was already read with the tag - nothing to skip
 	if tag.IsSmall {
-		return
+		return nil
 	}
 
 	// Regular format: skip data and padding
-	_, _ = io.CopyN(io.Discard, p.r, int64(tag.Size))
-	p.pos += int64(tag.Size)
+	return p.skip(int64(tag.Size) + int64(alignPadding(tag.Size)))
+}
 
-	padding := (8 - tag.Size%8) % 8
-	if padding > 0 {
-		_, _ = io.CopyN(io.Discard, p.r, int64(padding))
-		p.pos += int64(padding)
-	}
+// alignPadding returns the bytes that follow size bytes of element data up to the
+// 8-byte boundary the format aligns every regular element to.
+func alignPadding(size uint32) uint32 {
+	return (8 - size%8) % 8
 }
