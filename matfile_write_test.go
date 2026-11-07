@@ -702,13 +702,8 @@ func TestRoundTrip_v5_SimpleDouble(t *testing.T) {
 // TestRoundTrip_v73_Complex tests writing and reading complex numbers.
 // This verifies that Issue 3 (v73 complex reading) is fixed.
 //
-// NOTE: Currently skipped due to v73 writer bug - datasets not being closed.
-// The reader code is correct, but writer needs fix (datasets.Close() missing).
-//
 //nolint:gocognit // Table-driven test with comprehensive complex number verification.
 func TestRoundTrip_v73_Complex(t *testing.T) {
-	t.Skip("Skipped: v73 writer bug - datasets not closed properly (separate issue)")
-
 	testCases := []struct {
 		name string
 		real []float64
