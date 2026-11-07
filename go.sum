@@ -1,5 +1,5 @@
-github.com/scigolib/hdf5 v0.14.3 h1:vQJo5Nr3sB/fSRArLedOFtKaPv9lG1nFnpqc77s9ckQ=
-github.com/scigolib/hdf5 v0.14.3/go.mod h1:rpAHX9ODQWlVlcoJk3FNKdN4lifu7RCC/xl0kfTvtWw=
+github.com/scigolib/hdf5 v0.15.0 h1:jlX+WQAZZXr47Kfg80tf10Wu9sOAexsaDGA0X6RTSWk=
+github.com/scigolib/hdf5 v0.15.0/go.mod h1:rpAHX9ODQWlVlcoJk3FNKdN4lifu7RCC/xl0kfTvtWw=
 github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWDWE=
 github.com/stretchr/testify v1.12.1/go.mod h1:MDEgiDPPsNp5cuIrHPPCyornHKgEVbtFUmoNlxoYthg=
 go.yaml.in/yaml/v3 v3.0.6 h1:zcDfvjXEqTQmpjniUBLc91xYJMB2c4QOFxEF/LCEckM=
