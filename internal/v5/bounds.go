@@ -2,6 +2,7 @@ package v5
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -126,14 +127,38 @@ func (p *Parser) readPayload(size uint32) ([]byte, error) {
 	if p.limit > 0 {
 		data := make([]byte, size)
 		if _, err := io.ReadFull(p.r, data); err != nil {
-			return nil, err
+			return nil, truncated(err)
 		}
 		return data, nil
 	}
 
 	var buf bytes.Buffer
 	if _, err := io.CopyN(&buf, p.r, int64(size)); err != nil {
-		return nil, err
+		return nil, truncated(err)
 	}
 	return buf.Bytes(), nil
+}
+
+// skip discards n bytes the parser does not interpret: the data of an element
+// it skips, or the padding after an element. The bytes are part of the file, so
+// a stream that ends before them is truncated, not finished.
+func (p *Parser) skip(n int64) error {
+	if n <= 0 {
+		return nil
+	}
+	if _, err := io.CopyN(io.Discard, p.r, n); err != nil {
+		return fmt.Errorf("skipping %d bytes at offset %d: %w", n, p.pos, truncated(err))
+	}
+	p.pos += n
+	return nil
+}
+
+// truncated reports an end of stream met while bytes the format requires are
+// still owed as io.ErrUnexpectedEOF: io.EOF means a clean end between elements,
+// which these reads never are.
+func truncated(err error) error {
+	if errors.Is(err, io.EOF) {
+		return io.ErrUnexpectedEOF
+	}
+	return err
 }

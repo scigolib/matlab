@@ -411,3 +411,94 @@ func checkPayloadFits(t *testing.T, size uint32, wantErr string) {
 		t.Errorf("readTag() error = %q, want it to contain %q", err, wantErr)
 	}
 }
+
+// parseHidden parses in through a reader that cannot report its length, the
+// case where no region check is possible and only the reads themselves can
+// notice a truncated stream.
+func parseHidden(in []byte) error {
+	// Embedding io.Reader hides the concrete type's Size method.
+	var hidden io.Reader = struct{ io.Reader }{bytes.NewReader(in)}
+
+	parser, err := NewParser(hidden)
+	if err != nil {
+		return err
+	}
+	_, err = parser.Parse()
+	return err
+}
+
+// TestParse_TruncatedStreamIsAnError covers the skip paths: bytes the parser
+// skips (an element it does not interpret, the padding after an element) must
+// still be present. A short read there is a truncated file, not the end of a
+// valid one; before the fix it was discarded and Parse reported success.
+func TestParse_TruncatedStreamIsAnError(t *testing.T) {
+	const unknownType = 99
+
+	tests := []struct {
+		name string
+		in   []byte
+	}{
+		{
+			name: "unknown element data cut short",
+			in:   streamBytes(testHeader(), regularTag(unknownType, 16), make([]byte, 8)),
+		},
+		{
+			name: "unknown element padding cut short",
+			in:   streamBytes(testHeader(), regularTag(unknownType, 5), make([]byte, 5)),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := parseHidden(tt.in)
+			if err == nil {
+				t.Fatal("Parse() accepted a truncated stream")
+			}
+			if !errors.Is(err, io.ErrUnexpectedEOF) {
+				t.Errorf("Parse() error = %v, want io.ErrUnexpectedEOF", err)
+			}
+		})
+	}
+}
+
+// TestParse_MatrixElementPaddingMissing covers readData: an element inside a
+// matrix whose size is not a multiple of 8 is followed by padding, and the
+// matrix payload must contain it. Here the matrix ends right after the 5 bytes
+// of int8 data, so the padding read comes up short.
+func TestParse_MatrixElementPaddingMissing(t *testing.T) {
+	var payload bytes.Buffer
+
+	// Array flags: class int8, not complex.
+	flags := make([]byte, 8)
+	binary.LittleEndian.PutUint32(flags[0:4], mxINT8_CLASS)
+	payload.Write(regularTag(miUINT32, 8))
+	payload.Write(flags)
+
+	// Dimensions: 1x5.
+	dims := make([]byte, 8)
+	binary.LittleEndian.PutUint32(dims[0:4], 1)
+	binary.LittleEndian.PutUint32(dims[4:8], 5)
+	payload.Write(regularTag(miINT32, 8))
+	payload.Write(dims)
+
+	// Name: one byte plus padding to the 8-byte boundary.
+	name := make([]byte, 8)
+	name[0] = 'x'
+	payload.Write(regularTag(miINT8, 1))
+	payload.Write(name)
+
+	// Real data: 5 bytes, and the 3 bytes of padding the format requires are
+	// missing from the matrix payload.
+	payload.Write(regularTag(miINT8, 5))
+	payload.Write([]byte{1, 2, 3, 4, 5})
+
+	in := streamBytes(testHeader(), regularTag(miMATRIX, uint32(payload.Len())), payload.Bytes())
+
+	err := parseHidden(in)
+	if err == nil {
+		t.Fatal("Parse() accepted a matrix element whose padding is missing")
+	}
+	if !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Errorf("Parse() error = %v, want io.ErrUnexpectedEOF", err)
+	}
+}
