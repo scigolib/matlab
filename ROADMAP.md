@@ -2,7 +2,7 @@
 
 > **Strategic Approach**: Leverage existing HDF5 library and MATLAB documentation
 
-**Last Updated**: 2026-11-07 | **Current Version**: v0.3.17 (PATCH ✅) | **Target**: v1.0.0 stable (2026)
+**Last Updated**: 2026-11-07 | **Current Version**: v0.3.18 (PATCH ✅) | **Target**: v1.0.0 stable (2026)
 
 ---
 
@@ -42,14 +42,15 @@ v0.1.0-beta (2025-11-02) → Reader v5/v7.3 + Writer v7.3 (workaround complex)
 v0.1.1-beta (2025-11-03) → Proper MATLAB complex format + race detector fix
          ↓ (3 days!)
 v0.2.0-beta (2025-11-06) → v5 Writer + parser bug fixes + comprehensive tests
-         ↓ (2 months!)
-v0.2.0 STABLE (2025-01-09) ✅ → HDF5 v0.13.1 stable + production ready
+         ↓ (15 days)
+v0.2.0 STABLE (2025-11-21) ✅ → HDF5 v0.13.1 stable + production ready
          ↓ (1 day!)
 v0.3.0 STABLE (2025-11-21) ✅ → Production Quality (Grade A-)
          ↓
-v0.3.1–v0.3.17 (2026) ✅ → dependency updates through hdf5 v0.14.3,
+v0.3.1–v0.3.18 (2026) ✅ → dependency updates through hdf5 v0.14.3,
          32-bit target support, payload bounds, fuzzing,
-         truncated-stream detection, regenerated v7.3 test files
+         truncated-stream detection, regenerated v7.3 test files,
+         MATLAB-written v7.3 files (512-byte header) open
          ↓
 v0.4.0 → Context Support (cancellable operations)
          ↓ (1-2 months)
@@ -70,7 +71,7 @@ v2.0.0 → Only if breaking changes needed
 
 ---
 
-## 📊 Current Status (v0.3.17 - STABLE RELEASE ✅)
+## 📊 Current Status (v0.3.18 - STABLE RELEASE ✅)
 
 ### ✅ What's Working Now
 
@@ -111,10 +112,10 @@ v2.0.0 → Only if breaking changes needed
 - ✅ **Race detector working** (Gentoo WSL2 fix) (v0.1.1-beta)
 - ⚠️ Character arrays (partial for v5)
 
-**Quality Metrics** (v0.3.17):
+**Quality Metrics** (v0.3.18):
 - ✅ **Grade: A (Excellent)** - Production Quality ⬆️
-- ✅ Test coverage: root 96.9%, internal/v5 97.4%, internal/v73 86.5%, types 100%
-- ✅ Tests: 276 passing, 0 skipped, plus a fuzz target for the v5 parser
+- ✅ Test coverage: root 97.1%, internal/v5 97.4%, internal/v73 86.5%, types 100%
+- ✅ Tests: 278 passing, 0 skipped, plus a fuzz target for the v5 parser
 - ✅ Linter: 0 errors, 0 warnings
 - ✅ **Race detector: WORKING** (0 races detected)
 - ✅ CI/CD: All checks GREEN ✅
@@ -183,8 +184,8 @@ v2.0.0 → Only if breaking changes needed
 **Tasks**: TASK-011 (v5 Writer + Parser Fixes)
 **Duration**:
 - Beta: 3 days (2025-11-04 to 2025-11-06)
-- Stable: 2 months testing (2025-11-06 to 2025-01-09)
-**Status**: ✅ STABLE RELEASED 2025-01-09
+- Stable: 15 days testing (2025-11-06 to 2025-11-21)
+**Status**: ✅ STABLE RELEASED 2025-11-21
 
 **Key Achievements**:
 - v5 Writer implementation: 565 lines of production code
@@ -193,7 +194,7 @@ v2.0.0 → Only if breaking changes needed
 - Code quality: 0 linter errors, professional Go code
 - Round-trip verification: Both v5 and v7.3 formats working perfectly
 - **HDF5 v0.13.1 stable**: Upgraded from beta to stable dependency
-- **Production-ready**: 2 months of battle-testing
+- **Production-ready**: 15 days of testing after the beta
 
 ---
 
@@ -381,7 +382,7 @@ v2.0.0 → Only if breaking changes needed
 
 **Focus**: v0.4.0 - Context Support + Advanced Features
 
-**Current Status**: v0.3.17 STABLE released (2026-11-07) ✅
+**Current Status**: v0.3.18 STABLE released (2026-11-07) ✅
 
 **Planned Work**:
 1. **Context Support** ⭐ (TASK-013, v0.4.0)
@@ -524,7 +525,7 @@ The following features are **not planned**:
 
 ---
 
-## 🎉 Release Notes - v0.2.0 STABLE (2025-01-09)
+## 🎉 Release Notes - v0.2.0 STABLE (2025-11-21)
 
 ### What's New in v0.2.0 Stable
 - ✅ **STABLE RELEASE**: Graduated from beta to stable
@@ -552,4 +553,4 @@ The following features are **not planned**:
 ---
 
 *Version 2.3*
-*Current: v0.3.17 STABLE (RELEASED 2026-11-07) | Next: v0.4.0 (Context Support) | Target: v1.0.0 (2026)*
+*Current: v0.3.18 STABLE (RELEASED 2026-11-07) | Next: v0.4.0 (Context Support) | Target: v1.0.0 (2026)*

@@ -1,3 +1,14 @@
+## [0.3.18] - 2026-11-07
+
+### Fixed
+- **v7.3 files written by MATLAB could not be opened.** MATLAB writes a v7.3 MAT-file as HDF5 behind a 512-byte user block whose first 128 bytes are the MAT header (version 0x0200), so the HDF5 signature sits at offset 512. `Open` recognised HDF5 only at offset 0 and sent these files to the v5 parser, which failed with "tag size beyond end of file". The format is now told by the header's version field, as matio (`Mat_Open`) and scipy (`_get_matfile_version`) do: 0x0100 is v5, 0x0200 is v7.3. Our own test files carry no user block, which is why the tests never caught it; the new test reopens every test file with a MATLAB-style block in front, in both byte orders
+
+### Changed
+- A MAT header whose version is neither 0x0100 nor 0x0200 is rejected with `ErrUnsupportedVersion` instead of being parsed as v5
+- CHANGELOG and ROADMAP gave v0.2.0 the date 2025-01-09; its tag is from 2025-11-21
+
+---
+
 ## [0.3.17] - 2026-11-07
 
 ### Fixed
@@ -306,7 +317,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.2.0] - 2025-01-09
+## [0.2.0] - 2025-11-21
 
 ### Changed - Stable Release 🎉
 - **STABLE RELEASE**: Upgraded from beta to stable version
