@@ -1,15 +1,11 @@
-// Package main - Critical verification script for v7.3 read/write
-//
-// User Priority: "Первое, что делаем - запись и чтение v7.3. Это критично."
-//
-//	(First thing we do - write and read v7.3. This is critical)
+// Package main - Verification script for v7.3 read/write
 //
 // This script verifies that:
 // 1. Writer can create valid v7.3 files
 // 2. Reader can parse files created by writer
 // 3. Data integrity is preserved (no corruption)
 //
-// Usage: go run scripts/verify-v73-roundtrip.go
+// Usage, from the repository root: go run ./scripts/verify-roundtrip
 package main
 
 import (

@@ -23,7 +23,7 @@ A modern, pure Go library for **reading and writing** MATLAB `.mat` files withou
 - 📖 Read MATLAB v5-v7.2 files (traditional format)
 - 📖 Read MATLAB v7.3+ files (HDF5 format)
 - ✍️ **Write MATLAB v7.3+ files** (HDF5 format)
-- ✍️ **Write MATLAB v5-v7.2 files** (traditional format) - **NEW in v0.2.0!**
+- ✍️ **Write MATLAB v5-v7.2 files** (traditional format)
 
 🎯 **Key Capabilities**
 - Simple, intuitive API
@@ -37,10 +37,9 @@ A modern, pure Go library for **reading and writing** MATLAB `.mat` files withou
 - Complex numbers
 - Multi-dimensional arrays
 - Character arrays
-- Structures
-- Cell arrays
-- Sparse matrices
-- Compressed data (reading)
+- Compressed data (v5 reading)
+- Structures and cell arrays: not decoded yet (see [Known Limitations](#known-limitations))
+- Sparse matrices: not supported yet
 
 ## Installation
 
@@ -109,7 +108,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer writer.Close()
 
 	// Write a variable
 	err = writer.WriteVariable(&types.Variable{
@@ -136,10 +134,15 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// Close finishes the file: check its error, do not defer it away
+	if err := writer.Close(); err != nil {
+		log.Fatal(err)
+	}
 }
 ```
 
-#### v5 Format (Traditional Binary) - **NEW in v0.2.0!**
+#### v5 Format (Traditional Binary)
 
 ```go
 package main
@@ -157,7 +160,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer writer.Close()
 
 	// Write a simple array
 	err = writer.WriteVariable(&types.Variable{
@@ -195,6 +197,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// Close finishes the file: check its error, do not defer it away
+	if err := writer.Close(); err != nil {
+		log.Fatal(err)
+	}
 }
 ```
 
@@ -205,12 +212,12 @@ func main() {
 | Feature              | v5 (v5-v7.2) | v7.3+ (HDF5) |
 |----------------------|--------------|--------------|
 | Numeric arrays       | ✅           | ✅           |
-| Complex numbers      | ✅           | ✅           |
+| Complex numbers      | ✅           | ⚠️ ¹         |
 | Character arrays     | ✅           | ✅           |
 | Multi-dimensional    | ✅           | ✅           |
-| Structures           | ✅           | ✅           |
-| Cell arrays          | ✅           | ✅           |
-| Sparse matrices      | ✅           | ✅           |
+| Structures           | ⚠️ class only ² | ⚠️ fields flattened ³ |
+| Cell arrays          | ⚠️ class only ² | ⚠️ class only ² |
+| Sparse matrices      | ❌ Not yet   | ❌ Not yet   |
 | Compression          | ✅           | ✅           |
 | Function handles     | ❌ Out of scope | ❌ Out of scope |
 | Objects              | ❌ Out of scope | ❌ Out of scope |
@@ -220,7 +227,7 @@ func main() {
 | Feature              | v5 (v5-v7.2) | v7.3+ (HDF5) |
 |----------------------|--------------|--------------|
 | Numeric arrays       | ✅           | ✅           |
-| Complex numbers      | ✅           | ✅           |
+| Complex numbers      | ✅           | ⚠️ ¹         |
 | Character arrays     | ✅           | ✅           |
 | Multi-dimensional    | ✅           | ✅           |
 | Both endianness      | ✅ MI/IM     | N/A          |
@@ -228,34 +235,55 @@ func main() {
 | Cell arrays          | 📅 v0.5.0+   | 📅 v0.5.0+   |
 | Compression          | 📅 v0.5.0+   | 📅 v0.5.0+   |
 
+¹ v7.3 complex arrays are written as an HDF5 group with `real` and `imag`
+datasets and a `MATLAB_complex` attribute, and this layout is read back.
+MATLAB itself stores a v7.3 complex array as one dataset of a compound type
+with `real` and `imag` members; that layout is not read or written yet.
+
+² The variable's `DataType` is reported (`Struct`, `CellArray`); fields and
+elements are not decoded yet, and `Data` holds the undecoded first element, not
+usable values.
+
+³ A v7.3 structure is an HDF5 group: each field comes back as its own variable
+named by its path (`/s/a`), not as one `Struct` variable.
+
 ## Known Limitations
 
 ### Writer Limitations
 - No compression support (planned for v0.5.0+)
 - No structures/cell arrays writing (planned for v0.5.0+)
+- v7.3 complex arrays use the group layout described above, not MATLAB's
+  compound layout
 
 ### Reader Limitations
+- Structures and cell arrays are not decoded: v5 reports the class only, a v7.3
+  structure comes back as one variable per field; an empty v5 cell array fails
+  to open
+- Sparse matrices are not decoded: a v5 sparse matrix comes back with
+  `DataType` `Unknown` and meaningless data
+- A v5 compressed element may decompress to at most 100 MB (a guard against
+  compression bombs); larger variables in compressed files are rejected
+- v7.3 complex arrays in MATLAB's compound layout are not recognized
 - Function handles not supported (MATLAB-specific, cannot be serialized)
 - Objects not supported (language-specific)
 
 ### What Works Well ✅
-- ✅ **v5 Writer COMPLETE** - All numeric types, complex numbers, multi-dimensional arrays
-- ✅ **v7.3 Writer COMPLETE** - Full HDF5-based writing
-- ✅ **Parser bugs FIXED** - Multi-dimensional arrays, multiple variables
+- ✅ **v5 writer** - All numeric types, complex numbers, multi-dimensional arrays
+- ✅ **v7.3 writer** - HDF5-based writing; the files open with the HDF5 C tools (`h5dump`)
 - ✅ All numeric types (double, single, int8-64, uint8-64)
 - ✅ Multi-dimensional arrays (read & write)
-- ✅ Complex numbers (proper MATLAB format for both v5 and v7.3)
 - ✅ Round-trip verified (v5 write → read, v7.3 write → read)
-- ✅ Cross-platform (Windows, Linux, macOS)
+- ✅ v5 files validated against reference files from SciPy
+- ✅ Malformed v5 input is rejected with an error: sizes are checked against the input before any allocation, and the parser is fuzz-tested
+- ✅ Cross-platform (Windows, Linux, macOS; 32-bit builds checked in CI)
 - ✅ Both endianness (MI/IM for v5)
 
-See [CHANGELOG.md](CHANGELOG.md) for detailed limitations and planned fixes.
+See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 ## Documentation
 
-- **[Getting Started](docs/)** - Basic usage examples
-- **[API Reference](https://pkg.go.dev/github.com/scigolib/matlab)** - Full API documentation
-- **[Architecture](.claude/CLAUDE.md)** - Internal architecture and design decisions
+- **[API Reference](https://pkg.go.dev/github.com/scigolib/matlab)** - Full API documentation with runnable examples
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Development workflow and project structure
 - **[CHANGELOG.md](CHANGELOG.md)** - Version history and changes
 - **[ROADMAP.md](ROADMAP.md)** - Future plans and development timeline
 
@@ -263,19 +291,16 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed limitations and planned fixes.
 
 ### Requirements
 - Go 1.25 or later
-- HDF5 library (for v7.3+ support): `github.com/scigolib/hdf5` develop branch (commit 36994ac)
+- HDF5 library (for v7.3+ support): [`github.com/scigolib/hdf5`](https://github.com/scigolib/hdf5), a pure Go module fetched by `go`
 - No external C dependencies
 
 ### Building
 
 ```bash
-# Clone repositories (side-by-side)
-cd D:\projects\scigolibs
-git clone https://github.com/scigolib/hdf5.git
 git clone https://github.com/scigolib/matlab.git
+cd matlab
 
 # Build MATLAB library
-cd matlab
 make build
 
 # Run tests
@@ -284,11 +309,14 @@ make test
 # Run linter
 make lint
 
-# Generate test data
-go run scripts/generate-testdata/main.go
+# All CI checks: formatting, tests, lint, 32-bit builds
+make ci
+
+# Regenerate the v7.3 test files
+go run ./scripts/generate-testdata
 
 # Verify round-trip
-go run scripts/verify-roundtrip/main.go
+go run ./scripts/verify-roundtrip
 ```
 
 ### Testing
@@ -310,8 +338,9 @@ make lint
 ### Test Data
 
 The project includes test data in `testdata/`:
-- `testdata/generated/` - Files created by our writer (8 files)
-- `testdata/scipy/` - Reference files from SciPy project (3 files)
+- `testdata/generated/` - v7.3 files created by our writer (8 files)
+- `testdata/legacy/` - A v7.3 file written by an early release, kept to prove it still reads (1 file)
+- `testdata/scipy/` - Reference files from the SciPy project (4 files)
 
 ---
 
@@ -320,9 +349,8 @@ The project includes test data in `testdata/`:
 Contributions are welcome! This is a stable project and we'd love your help.
 
 **Before contributing**:
-1. Read [CONTRIBUTING.md](CONTRIBUTING.md) - Git workflow and development guidelines
+1. Read [CONTRIBUTING.md](CONTRIBUTING.md) - Git workflow, development guidelines and project structure
 2. Check [open issues](https://github.com/scigolib/matlab/issues)
-3. Review the architecture in `.claude/CLAUDE.md`
 
 **Ways to contribute**:
 - 🐛 Report bugs
@@ -334,9 +362,10 @@ Contributions are welcome! This is a stable project and we'd love your help.
 
 **Priority Areas**:
 - Test MATLAB/Octave compatibility with real-world files
+- Read and write v7.3 complex arrays in MATLAB's compound layout
+- Decode structures and cell arrays; read sparse matrices
 - Add compression support for v5/v7.3 writers
 - Implement structures and cell arrays writing
-- Improve test coverage (current: 92.8%)
 
 ---
 
@@ -348,7 +377,7 @@ Contributions are welcome! This is a stable project and we'd love your help.
 | v5-v7.2 Read | ✅ Yes | ❌ Limited | ⚠️ Partial |
 | v7.3+ Read | ✅ Yes | ❌ No | ❌ No |
 | **Write Support** | ✅ **v5 + v7.3 Yes** | ❌ No | ❌ No |
-| Complex Numbers | ✅ Yes | ⚠️ Limited | ❌ No |
+| Complex Numbers | ✅ Yes (v7.3: own layout ¹) | ⚠️ Limited | ❌ No |
 | Maintained | ✅ Active | ❌ Inactive | ❌ Inactive |
 | Cross-platform | ✅ Yes | ⚠️ Platform-specific | ✅ Yes |
 
@@ -379,15 +408,15 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-- 📖 Documentation - See `.claude/CLAUDE.md` for architecture details
+- 📖 [Documentation](https://pkg.go.dev/github.com/scigolib/matlab) - API reference and examples
 - 🐛 [Issue Tracker](https://github.com/scigolib/matlab/issues)
-- 💬 Discussions - GitHub Discussions (coming soon)
+- 💬 [Discussions](https://github.com/scigolib/matlab/discussions)
 - 📧 Contact - Via GitHub Issues
 
 ---
 
-**Status**: ✅ **STABLE** - Production-ready read and write support for both v5 and v7.3 formats!
-**Last Updated**: 2026-03-30
+**Status**: ✅ **STABLE** - read and write support for numeric data in both v5 and v7.3 formats (see [Known Limitations](#known-limitations))
+**Last Updated**: 2026-11-07
 
 **Ready for**: Production use, testing, feedback, and real-world usage
 **Stable API**: Minor API changes may occur in 0.x versions, major stability expected
