@@ -1,11 +1,20 @@
 ## [0.3.19] - 2026-11-07
 
+A v7.3 file written by this library now starts with the 512-byte MAT header that MATLAB writes in front of its own v7.3
+files. The HDF5 dependency moves to v0.15.0, which
+provides the user block the header lives in. Loading these files in MATLAB itself is not verified.
+
+**Upgrading:** v7.3 files now start with a 512-byte MAT header, and the HDF5 signature sits at offset 512 instead of 0.
+A reader that expects the signature at offset 0 must search for it at 512, as the HDF5 C library does. matlab v0.3.18
+and later and the hdf5 module read these files.
+
 ### Fixed
 - **v7.3 files were written without the MAT header MATLAB expects** (issue #21 reported v7.3 files as unreadable by MATLAB too; the v0.3.15 answer covered only v5). MATLAB writes a v7.3 MAT-file as HDF5 behind a 512-byte user block whose first 128 bytes are the MAT header (`MATLAB 7.3 MAT-file, …`, version 0x0200, `IM`); ours started with the HDF5 signature. The writer now reserves the block and writes the header the way matio's `Mat_Create73` does. The header text uses MATLAB's own wording and always fits its 116 bytes. Loading the files in MATLAB itself is not verified (no MATLAB available); `h5dump` opens them
 
 ### Changed
 - **HDF5 dependency**: v0.14.3 → v0.15.0 (adds user blocks: `WithUserBlock`, `FileWriter.WriteUserBlock`, the equivalent of the C library's `H5Pset_userblock`)
 - `testdata/generated` regenerated with the header; the user-block detection test now prepends the block to the headerless legacy file
+- **Documentation** follows the layout of github.com/scigolib/hdf5: README sections Reading / Writing / Validation / Limitations; new `UPSTREAM.md` (the references the format handling follows: matio, SciPy, the HDF5 C library, MathWorks' format docs), `docs/guides/QUICKSTART.md`, `docs/guides/DATATYPES.md`, `docs/architecture/OVERVIEW.md`, `AGENTS.md` and `llms.txt`; numbered runnable examples under `examples/`; CONTRIBUTING.md rewritten against the CI workflow and the Makefile. The README no longer claims that character arrays can be written: both writers return an error for `types.Char`
 
 ---
 

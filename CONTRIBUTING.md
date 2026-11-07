@@ -1,262 +1,155 @@
 # Contributing to MATLAB File Reader/Writer
 
-Thank you for considering contributing to the MATLAB File Reader/Writer! This document outlines the development workflow and guidelines.
+Contributions are welcome: bug reports with a sample file, fixes, documentation, and MAT-files from your own field that
+the library should read. This document describes the workflow and the checks.
 
-## Git Workflow (GitHub Flow)
+## Workflow (GitHub Flow)
 
-`main` is the only long-lived branch and always holds releasable code. Every
-change, from a typo to a feature, reaches it through a pull request.
+`main` is the only long-lived branch and always holds releasable code. Every change, from a typo to a feature,
+reaches it through a pull request.
 
-1. Fork the repository (or create a branch, if you have write access) and
-   branch from the latest `main`:
+1. Fork the repository (or branch, if you have write access) from the latest `main`:
    ```bash
    git checkout main
    git pull origin main
    git checkout -b fix/issue-123
    ```
-2. Make the change with tests. For a bug fix, add a test that fails on the
-   current code first.
-3. Run the local checks (`make ci`, see below).
-4. Push the branch and open a pull request against `main`. Reference the issue
-   it closes (`Fixes #123`).
-5. CI must be green before a merge. The required checks on `main` are the unit
-   tests on Linux, macOS and Windows, `Lint`, `Code Formatting` and
-   `Cross-Build 32-bit`; the branch must be up to date with `main`.
-6. A maintainer reviews and merges. Releases are tagged from `main` by the
-   maintainers.
+2. Make the change with tests (see Tests below). For a bug fix, write the test first and see it fail.
+3. Run the local checks (see Local checks).
+4. Push the branch and open a pull request against `main`. Reference the issue it closes (`Fixes #123`).
+5. CI must be green. The checks required on `main` are:
+   - `Unit Tests - ubuntu-latest - Go 1.25`
+   - `Unit Tests - macos-latest - Go 1.25`
+   - `Unit Tests - windows-latest - Go 1.25`
+   - `Lint`
+   - `Code Formatting`
+   - `Cross-Build 32-bit`
+6. A maintainer reviews and merges. Releases are tagged from `main` by the maintainers.
 
-Branch names are free-form; `feat/…`, `fix/…`, `docs/…` are a good habit.
+Branch names are free-form; `feat/...`, `fix/...`, `docs/...` are a good habit.
 
-## Commit Message Guidelines
+## Commit messages
 
-Follow [Conventional Commits](https://www.conventionalcommits.org/) specification:
+[Conventional Commits](https://www.conventionalcommits.org/):
 
 ```
 <type>(<scope>): <description>
 
 [optional body]
-
-[optional footer]
 ```
 
-### Types
+Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`. Say what changed and why.
 
-- **feat**: New feature
-- **fix**: Bug fix
-- **docs**: Documentation changes
-- **style**: Code style changes (formatting, etc.)
-- **refactor**: Code refactoring
-- **test**: Adding or updating tests
-- **chore**: Maintenance tasks (build, dependencies, etc.)
-- **perf**: Performance improvements
-
-### Examples
-
-```bash
+```
 feat: add support for sparse matrices in v5 format
 fix: correct endianness handling in header parsing
 docs: update README with compressed data limitations
-refactor: simplify variable type conversion logic
-test: add tests for complex number arrays
-chore: update go.mod dependencies
 ```
 
-## Code Quality Standards
+## Local checks
 
-### Before Committing
-
-1. **Format code**:
-   ```bash
-   make fmt
-   ```
-
-2. **Run linter**:
-   ```bash
-   make lint
-   ```
-
-3. **Run tests**:
-   ```bash
-   make test
-   ```
-
-4. **All-in-one** (formatting, tests, lint and 32-bit builds; CI also runs
-   `go vet` and the tests with the race detector):
-   ```bash
-   make ci
-   ```
-   `make pre-commit` runs the same checks but formats the code instead of
-   only checking it.
-
-### Pull Request Requirements
-
-- [ ] Code is formatted (`make fmt`)
-- [ ] Linter passes (`make lint`)
-- [ ] All tests pass (`make test`)
-- [ ] New code has tests (minimum 70% coverage)
-- [ ] Documentation updated (if applicable)
-- [ ] Commit messages follow conventions
-- [ ] No sensitive data (credentials, tokens, etc.)
-
-## Development Setup
-
-### Prerequisites
-
-- Go 1.25 or later
-- golangci-lint v2 (`make install-lint`)
-- A C compiler only for `make test-race` (the race detector needs cgo)
-
-The HDF5 dependency (`github.com/scigolib/hdf5`) is an ordinary Go module and
-is fetched by `go` like any other.
-
-### Install Dependencies
+From the repository root, with Go 1.25 or later (`go.mod` says `go 1.25`) and golangci-lint v2
+(`make install-lint`):
 
 ```bash
-git clone https://github.com/scigolib/matlab.git
-cd matlab
-make install-lint
+gofmt -l .              # must print nothing
+go vet ./...
+go test ./...
+golangci-lint run ./... # 0 issues
 ```
 
-To develop against a local checkout of the HDF5 library, add a `go.work` file
-next to both clones (`go work init ./matlab ./hdf5`). Keep it out of commits:
-CI builds with the version in `go.mod`.
+The Makefile wraps them:
 
-### Running Tests
+| Target | Does |
+|---|---|
+| `make build` | `go build ./...` |
+| `make test` | `go test -v -coverprofile=coverage.out ./...` |
+| `make test-race` | the same with `-race`; the race detector needs cgo, so a C compiler |
+| `make lint` | `golangci-lint run --timeout=5m` |
+| `make fmt` | `gofmt -w -s .` and `go mod tidy` |
+| `make cross-build` | builds `linux/386`, `linux/arm` (GOARM=6) and `windows/386` |
+| `make ci` | `fmt-check`, `test`, `lint`, `cross-build` |
+| `make pre-commit` | `fmt`, `lint`, `test`, `cross-build` |
+| `make examples` | builds `cmd/example` and `examples` |
 
-```bash
-# Run all tests
-make test
+CI also runs `go vet`, `go mod verify`, and the tests with `-race` on Linux, macOS and Windows, plus `go vet` and
+`go test -short` for `linux/386`. Run the whole matrix locally only when you are chasing a failure that CI reports.
 
-# Run with coverage
-make test-coverage
+Heavy runs: the Go test cache and temp directory can be placed on another disk with `GOTMPDIR`. Generated files
+(coverage, logs, binaries) do not belong in the repository root; `.gitignore` covers the usual ones.
 
-# Run with race detector
-make test-race
+## Tests
 
-# Run benchmarks
-make benchmark
-```
+- **A bug fix starts with a test that fails before the fix**, and the pull request says how you saw it fail.
+- **New behaviour comes with tests**: table-driven where it fits, success and error cases, both byte orders for v5.
+- **Corruption and security tests use sizes that cannot exhaust memory.** Claim a few megabytes against a few dozen
+  bytes of input and assert the error; do not allocate gigabytes to prove a check.
+- **Reference files** live in `testdata/`. Files this library writes are checked with `h5dump` (v7.3) on the
+  maintainer's machine, and with matio or MATLAB when one is available. The matlab CI has no `h5dump` job, so run it
+  yourself when you change a writer: `h5dump file.mat` must open the file without errors.
+- `go run ./scripts/generate-testdata` regenerates `testdata/generated`; `go run ./scripts/verify-roundtrip` checks a
+  write-and-read round trip.
+- A test is never weakened to go green. If intended behaviour changed, update the assertion on purpose and say so.
 
-### Running Linter
+## References
 
-```bash
-# Run linter
-make lint
+The behaviour follows matio, SciPy, the HDF5 C library and MathWorks' format documents. They are listed with exact
+versions in [UPSTREAM.md](UPSTREAM.md). Where a spec defines a value, the spec decides; where we differ from a
+reference, UPSTREAM.md records it.
 
-# Save linter report
-make lint-report
-```
+## Documentation
 
-## Project Structure
+- [README.md](README.md): features, quick start, current status. Every number has a command that produces it.
+- [CHANGELOG.md](CHANGELOG.md): Keep a Changelog format with Added, Changed, Fixed and Security sections. Each release
+  starts with a short intro, and a behaviour change carries an inline `Upgrading:` note.
+- [docs/guides](docs/guides/): QUICKSTART and DATATYPES. [docs/architecture](docs/architecture/OVERVIEW.md): packages.
+- [AGENTS.md](AGENTS.md) and [llms.txt](llms.txt): guidance for AI agents that use the library.
+- [examples](examples/README.md): each example has a `main.go` and a README and must build:
+  `go vet ./examples/...`.
+- Code samples in docs compile against the current API and check every error, including the one from `Close`.
+
+## Project structure
 
 ```
 matlab/
-├── matfile.go           # Public API - Reader (Open)
-├── matfile_write.go     # Public API - Writer (Create)
-├── options.go           # Public API - writer options (WithEndianness, ...)
-├── example_test.go      # Testable examples shown on pkg.go.dev
-├── types/               # Common data structures (PUBLIC)
-│   ├── array.go        # Array types
-│   └── variable.go     # Variable representation
-├── internal/            # Private implementation details
-│   ├── v5/             # MATLAB v5-v7.2 reader/writer
-│   │   ├── parser.go       # Reader parser
-│   │   ├── bounds.go       # Payload size checks and bounded reads
-│   │   ├── header.go       # Header parsing
-│   │   ├── data_tag.go     # Tag-length-value parsing
-│   │   ├── matrix.go       # Matrix element parsing
-│   │   ├── types.go        # Type constants and conversions
-│   │   ├── compressed.go   # Compressed element (zlib) reading
-│   │   └── writer.go       # v5 writer
-│   └── v73/            # MATLAB v7.3+ reader/writer (HDF5-based)
-│       ├── parser.go       # Reader parser
-│       ├── adapter.go      # HDF5 to MATLAB adapter
-│       └── writer.go       # v7.3 writer
-├── cmd/example/         # Example program
-├── examples/            # Usage examples
-├── scripts/             # Test data generation and round-trip check
-├── testdata/            # Test files (generated, legacy, SciPy reference)
-└── Makefile             # Development commands
+├── matfile.go, matfile_write.go, options.go   # public API: Open, Create, options
+├── example_test.go          # testable examples shown on pkg.go.dev
+├── types/                   # Variable, DataType, NumericArray (public)
+├── internal/v5/             # v5 reader and writer
+├── internal/v73/            # v7.3 reader and writer, on the hdf5 module
+├── cmd/example/             # example program
+├── examples/                # numbered runnable examples
+├── scripts/                 # generate-testdata, verify-roundtrip
+├── testdata/                # scipy, generated and legacy test files
+├── docs/                    # guides and architecture overview
+├── UPSTREAM.md              # references and validation
+└── Makefile
 ```
 
-## Adding New Features
+To develop against a local checkout of the HDF5 module, add a `go.work` next to both clones
+(`go work init ./matlab ./hdf5`) and keep it out of commits: CI builds with the version in `go.mod`.
 
-1. Check if issue exists, if not create one
-2. Discuss approach in the issue
-3. Create a branch from `main`
-4. Implement feature with tests
-5. Update documentation
-6. Run quality checks (`make ci`)
-7. Create a pull request to `main`
-8. Wait for code review
-9. Address feedback
-10. Merge when approved
+## Code style
 
-## Code Style Guidelines
+- Follow Go conventions; comment the non-obvious, especially binary format details (padding, alignment, byte order).
+- Parsers read from `io.Reader`, use `io.ReadFull` for exact reads, store the `binary.ByteOrder` found in the header
+  and never assume one. Sizes taken from a file are checked against the input before any allocation.
+- v5 elements are aligned to 8 bytes: `padding := (8 - size%8) % 8`.
+- Check every error and wrap it with context using `%w`; callers match with `errors.Is`
+  (`ErrInvalidFormat`, `ErrUnsupportedVersion`, `io.ErrUnexpectedEOF`). `Close` errors on written files are checked.
+- Names follow Go: `PascalCase` exported, `camelCase` unexported, MATLAB's own constant names (`miMATRIX`,
+  `mxDOUBLE_CLASS`) in `internal/v5`.
 
-### General Principles
+## Security
 
-- Follow Go conventions and idioms
-- Write self-documenting code
-- Add comments for complex logic (especially binary format parsing)
-- Keep functions small and focused
-- Use meaningful variable names
+Report vulnerabilities privately, as described in [SECURITY.md](SECURITY.md), not in a public issue.
 
-### Naming Conventions
+## Getting help
 
-- **Public types/functions**: `PascalCase` (e.g., `ParseMatrix`)
-- **Private types/functions**: `camelCase` (e.g., `readTag`)
-- **Constants**: `PascalCase` with context prefix (e.g., `miMATRIX`, `mxDOUBLE_CLASS`)
-- **Test functions**: `Test*` (e.g., `TestParseHeader`)
-
-### Error Handling
-
-- Always check and handle errors
-- Use descriptive error variables (`ErrUnsupportedVersion`, `ErrInvalidFormat`)
-- Return errors immediately, don't wrap unnecessarily
-- Validate inputs before processing
-
-### Testing
-
-- Use table-driven tests when appropriate
-- Test both success and error cases
-- Include test data files in `testdata/`
-- Test both endianness variants (little/big)
-- Mock external dependencies when needed
-
-## Parser Implementation Patterns
-
-### Streaming I/O
-- Work with `io.Reader` for memory efficiency
-- Use `io.ReadFull()` for exact byte reads
-- Never load entire file into memory
-- Track position for debugging
-
-### Byte Order Handling
-- Store `binary.ByteOrder` in parser state
-- Detect endianness from header
-- Use `Order.Uint32()`, `Order.Uint64()` consistently
-
-### Padding Alignment
-```go
-// Always align to 8-byte boundaries in v5 format
-padding := (8 - size%8) % 8
-```
-
-## Getting Help
-
-- Check existing [issues](https://github.com/scigolib/matlab/issues) and
-  [discussions](https://github.com/scigolib/matlab/discussions)
-- The package documentation and examples are on
-  [pkg.go.dev](https://pkg.go.dev/github.com/scigolib/matlab)
-- The MAT-file format is described in MathWorks'
-  [MAT-File Format](https://www.mathworks.com/help/pdf_doc/matlab/matfile_format.pdf)
-- Ask questions in GitHub Issues or Discussions
+- [Issues](https://github.com/scigolib/matlab/issues) and [discussions](https://github.com/scigolib/matlab/discussions)
+- [pkg.go.dev](https://pkg.go.dev/github.com/scigolib/matlab) for the API
+- MathWorks' [MAT-File Format](https://www.mathworks.com/help/pdf_doc/matlab/matfile_format.pdf)
 
 ## License
 
 By contributing, you agree that your contributions will be licensed under the MIT License.
-
----
-
-**Thank you for contributing to the MATLAB File Reader/Writer!** 🎉

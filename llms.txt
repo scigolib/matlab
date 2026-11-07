@@ -1,0 +1,18 @@
+# scigolib/matlab
+
+> Pure Go reader and writer for MATLAB .mat files: v5 (MATLAB 5 to 7.2) and v7.3 (HDF5), no cgo. Reads and writes numeric arrays, real and complex; structures, cell arrays and sparse matrices are not decoded.
+
+## Docs
+
+- [README](https://github.com/scigolib/matlab/blob/main/README.md): features, quick start, current status and limitations
+- [AGENTS.md](https://github.com/scigolib/matlab/blob/main/AGENTS.md): recipes and common mistakes for code that uses the library
+- [Quick Start](https://github.com/scigolib/matlab/blob/main/docs/guides/QUICKSTART.md): read, write and error handling
+- [Datatypes](https://github.com/scigolib/matlab/blob/main/docs/guides/DATATYPES.md): MATLAB classes and Go types, v5 and v7.3 differences
+- [API reference](https://pkg.go.dev/github.com/scigolib/matlab): pkg.go.dev
+
+## Optional
+
+- [CONTRIBUTING](https://github.com/scigolib/matlab/blob/main/CONTRIBUTING.md): workflow for changing the library
+- [ROADMAP](https://github.com/scigolib/matlab/blob/main/ROADMAP.md): what is planned
+- [UPSTREAM](https://github.com/scigolib/matlab/blob/main/UPSTREAM.md): references the behaviour is checked against
+- [Examples](https://github.com/scigolib/matlab/blob/main/examples/README.md): runnable programs
