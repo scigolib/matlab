@@ -2,7 +2,7 @@
 
 > **Strategic Approach**: Leverage existing HDF5 library and MATLAB documentation
 
-**Last Updated**: 2026-11-07 | **Current Version**: v0.3.18 (PATCH ✅) | **Target**: v1.0.0 stable (2026)
+**Last Updated**: 2026-11-07 | **Current Version**: v0.3.19 (PATCH ✅) | **Target**: v1.0.0 stable (2026)
 
 ---
 
@@ -13,7 +13,7 @@ Build a **production-ready, pure Go MATLAB file library** with comprehensive **r
 ### Key Advantages
 
 ✅ **HDF5 Library with Write Support**
-- Pure Go HDF5 implementation at `github.com/scigolib/hdf5` (v0.14.3 as of v0.3.17)
+- Pure Go HDF5 implementation at `github.com/scigolib/hdf5` (v0.15.0 as of v0.3.19)
 - **HDF5 write support already implemented** (Create, WriteDataset, WriteAttribute, Group attributes)
 - **Nested datasets** and **Group attributes** support (v0.1.1-beta)
 - v7.3+ read/write via thin adapter layer
@@ -47,10 +47,10 @@ v0.2.0 STABLE (2025-11-21) ✅ → HDF5 v0.13.1 stable + production ready
          ↓ (1 day!)
 v0.3.0 STABLE (2025-11-21) ✅ → Production Quality (Grade A-)
          ↓
-v0.3.1–v0.3.18 (2026) ✅ → dependency updates through hdf5 v0.14.3,
+v0.3.1–v0.3.19 (2026) ✅ → dependency updates through hdf5 v0.15.0,
          32-bit target support, payload bounds, fuzzing,
          truncated-stream detection, regenerated v7.3 test files,
-         MATLAB-written v7.3 files (512-byte header) open
+         MATLAB-written v7.3 files open, v7.3 output carries the MAT header
          ↓
 v0.4.0 → Context Support (cancellable operations)
          ↓ (1-2 months)
@@ -71,7 +71,7 @@ v2.0.0 → Only if breaking changes needed
 
 ---
 
-## 📊 Current Status (v0.3.18 - STABLE RELEASE ✅)
+## 📊 Current Status (v0.3.19 - STABLE RELEASE ✅)
 
 ### ✅ What's Working Now
 
@@ -112,10 +112,10 @@ v2.0.0 → Only if breaking changes needed
 - ✅ **Race detector working** (Gentoo WSL2 fix) (v0.1.1-beta)
 - ⚠️ Character arrays (partial for v5)
 
-**Quality Metrics** (v0.3.18):
+**Quality Metrics** (v0.3.19):
 - ✅ **Grade: A (Excellent)** - Production Quality ⬆️
-- ✅ Test coverage: root 97.1%, internal/v5 97.4%, internal/v73 86.5%, types 100%
-- ✅ Tests: 278 passing, 0 skipped, plus a fuzz target for the v5 parser
+- ✅ Test coverage: root 97.1%, internal/v5 97.4%, internal/v73 86.7%, types 100%
+- ✅ Tests: 282 passing, 0 skipped, plus a fuzz target for the v5 parser
 - ✅ Linter: 0 errors, 0 warnings
 - ✅ **Race detector: WORKING** (0 races detected)
 - ✅ CI/CD: All checks GREEN ✅
@@ -382,7 +382,7 @@ v2.0.0 → Only if breaking changes needed
 
 **Focus**: v0.4.0 - Context Support + Advanced Features
 
-**Current Status**: v0.3.18 STABLE released (2026-11-07) ✅
+**Current Status**: v0.3.19 STABLE released (2026-11-07) ✅
 
 **Planned Work**:
 1. **Context Support** ⭐ (TASK-013, v0.4.0)
@@ -415,7 +415,7 @@ v2.0.0 → Only if breaking changes needed
 
 **Required**:
 - Go 1.25+
-- github.com/scigolib/hdf5 (v0.14.3 as of v0.3.17) - for v7.3 support
+- github.com/scigolib/hdf5 (v0.15.0 as of v0.3.19) - for v7.3 support
   - Production-ready HDF5 implementation
   - Includes nested datasets and group attributes support
 
@@ -553,4 +553,4 @@ The following features are **not planned**:
 ---
 
 *Version 2.3*
-*Current: v0.3.18 STABLE (RELEASED 2026-11-07) | Next: v0.4.0 (Context Support) | Target: v1.0.0 (2026)*
+*Current: v0.3.19 STABLE (RELEASED 2026-11-07) | Next: v0.4.0 (Context Support) | Target: v1.0.0 (2026)*

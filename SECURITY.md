@@ -294,7 +294,7 @@ Actual data size: huge → buffer overflow
 - Integer overflow in dataset dimensions
 
 **Mitigation**:
-- Relies on `github.com/scigolib/hdf5` (v0.14.3 as of matlab v0.3.17)
+- Relies on `github.com/scigolib/hdf5` (v0.15.0 as of matlab v0.3.19)
 - HDF5 library has comprehensive security mitigations
 - MATLAB_class attributes validated for type safety
 
@@ -509,7 +509,7 @@ return writer.Close()
 **Description**: v7.3 files rely on HDF5 library. Any HDF5 vulnerability affects v7.3 parsing.
 
 **Mitigation**:
-- Each release depends on the latest HDF5 library release (v0.14.3 as of v0.3.17)
+- Each release depends on the latest HDF5 library release (v0.15.0 as of v0.3.19)
 - HDF5 library has comprehensive security testing
 - Monitor HDF5 library [security advisories](https://github.com/scigolib/hdf5/security/advisories)
 
@@ -517,7 +517,7 @@ return writer.Close()
 
 MATLAB File Reader/Writer dependencies:
 
-- `github.com/scigolib/hdf5` (v0.14.3 as of v0.3.17) - v7.3 format support
+- `github.com/scigolib/hdf5` (v0.15.0 as of v0.3.19) - v7.3 format support
 - `github.com/stretchr/testify` (dev only) - Testing
 
 **Monitoring**:
