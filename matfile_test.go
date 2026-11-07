@@ -182,6 +182,8 @@ func TestOpen_V5HeaderZeroBody(t *testing.T) {
 	// Build a 128-byte header with "MI" at bytes 126-127 and empty body.
 	// With an empty body, the parser reads EOF immediately and returns no variables.
 	data := make([]byte, 128)
+	data[124] = 0x01 // version 0x0100 read big-endian ("MI")
+	data[125] = 0x00
 	data[126] = 'M'
 	data[127] = 'I'
 
