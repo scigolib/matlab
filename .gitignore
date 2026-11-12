@@ -25,6 +25,7 @@ vendor/
 .mcp.json
 
 # Private development docs (not for release)
+/.pm/
 /docs/dev/
 /docs/proposals/
 
