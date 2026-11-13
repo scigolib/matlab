@@ -17,12 +17,12 @@ reaches it through a pull request.
 2. Make the change with tests (see Tests below). For a bug fix, write the test first and see it fail.
 3. Run the local checks (see Local checks).
 4. Push the branch and open a pull request against `main`. Reference the issue it closes (`Fixes #123`).
-5. CI must be green. The `Required checks` job at the end of every run reports the combined result: it fails when
-   any of the gating jobs failed — the unit tests on Linux, macOS and Windows, the `go.mod` minimum, lint on the
+5. CI must be green. The required check on `main` is `Required checks`: the job at the end of every run that fails
+   when any gating job failed — the unit tests on Linux, macOS and Windows, the `go.mod` minimum, lint on the
    Linux, Windows and macOS targets, formatting and the 32-bit cross-build. `Vulncheck` is informational and does
    not block a merge.
-6. A maintainer reviews every pull request before it is merged. Releases are tagged from `main` by the
-   maintainers.
+6. A maintainer reviews and approves every pull request before it is merged; `main` requires one approving
+   review. Releases are tagged from `main` by the maintainers.
 
 Branch names are free-form; `feat/...`, `fix/...`, `docs/...` are a good habit.
 
