@@ -1,14 +1,14 @@
 # Upstream references
 
-What MAT-file behaviour this library is built and checked against. Last reviewed 2026-11-07.
+What MAT-file behaviour this library is built and checked against. Last reviewed 2026-11-13.
 
 ## References
 
 | Reference | Pinned to | What we follow |
 |---|---|---|
-| [matio](https://github.com/tbeu/matio) | v1.6.0, commit 86c1878 | `src/mat.c` `Mat_Open`: the format is told by the header's version field, 0x0100 is v5 and 0x0200 is v7.3. `src/mat73.c` `Mat_Create73`: a v7.3 file is HDF5 behind a 512-byte user block that holds the 128-byte MAT header (our v7.3 writer does the same). The same file stores a complex v7.3 variable as a compound type with `real` and `imag` members (around lines 465 and 1615) |
+| [matio](https://github.com/tbeu/matio) | v1.6.0, commit 86c18781 | `src/mat.c` `Mat_Open`: the format is told by the header's version field, 0x0100 is v5 and 0x0200 is v7.3. `src/mat73.c` `Mat_Create73`: a v7.3 file is HDF5 behind a 512-byte user block that holds the 128-byte MAT header (our v7.3 writer does the same). The same file stores a complex v7.3 variable as a compound type with `real` and `imag` members (around lines 465 and 1615) |
 | [SciPy](https://github.com/scipy/scipy) | v1.18.1, commit e4e854eaa | `scipy/io/matlab/_miobase.py` `_get_matfile_version`: major version 1 is v5, 2 is v7.3, anything else is an error. The files in `testdata/scipy` come from the SciPy project |
-| [HDF5 C library](https://github.com/HDFGroup/hdf5) | develop, commit bc8f6bb02aa (2025-12-18) | `src/H5FDint.c` `H5FD_locate_signature`: the HDF5 signature is looked for at offset 0 and then at every power of two from 512, which is where a MATLAB v7.3 file has it |
+| [HDF5 C library](https://github.com/HDFGroup/hdf5) | 2.2.0, commit 49df1b4e5ca | `src/H5FDint.c` `H5FD_locate_signature` (line 148 at 2.2.0): the HDF5 signature is looked for at offset 0 and then at every power of two from 512, which is where a MATLAB v7.3 file has it |
 | MathWorks, [MAT-File Format](https://www.mathworks.com/help/pdf_doc/matlab/matfile_format.pdf) | PDF | the v5 layout: header, data element tags, small data elements, matrix sub-elements, compression, 8-byte alignment |
 | MathWorks, [MAT-file versions](https://www.mathworks.com/help/matlab/import_export/mat-file-versions.html) | web page | which MATLAB versions write v5 and v7.3 |
 
