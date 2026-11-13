@@ -40,11 +40,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        # '1.25' is the go.mod minimum today. It also keeps the legacy required contexts
-        # (`Unit Tests - <os> - Go 1.25`) reporting until the ruleset moves to `Required
-        # checks`; the dynamic `test-minimum` job already proves the go.mod line itself, so
-        # this entry is dropped in the PR that follows that switch.
-        go-version: ['1.25', oldstable, stable]
+        # oldstable and stable are the two supported Go releases and follow Go's support
+        # policy by themselves. The go.mod minimum is tested by the `test-minimum` job below,
+        # so no fixed version is named here.
+        go-version: [oldstable, stable]
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
