@@ -54,7 +54,8 @@ what the reference implementations read — not merely when our own reader accep
 ## Review and release
 
 - **Every pull request is reviewed by a maintainer before merge.** `main` accepts changes only through a pull
-  request, and CI must be green: the `Required checks` job at the end of a run fails when any gating job failed.
+  request, requires one approving review, and requires CI green: the `Required checks` job at the end of a run
+  fails when any gating job failed.
 - **Releases follow the maintainers' release procedure:** pre-flight checks, a pull request, green CI on `main`, a
   tag, and a GitHub release with notes from [CHANGELOG.md](../CHANGELOG.md). A tag without a GitHub release is an
   unfinished release.
@@ -70,4 +71,4 @@ what the reference implementations read — not merely when our own reader accep
 | Code is `gofmt`-ed and `go.mod`/`go.sum` are tidy | CI: `Code Formatting` |
 | A dependency vulnerability is visible | CI: `Vulncheck` (informational; never blocks an unrelated pull request) |
 | A red job cannot be merged as green | CI: `Required checks` (the gate) |
-| Changes reach `main` only through a reviewed pull request | The `main-protection` ruleset and maintainer review |
+| Changes reach `main` only through a reviewed pull request | The `main-protection` ruleset: a pull request, one approving review, and the `Required checks` gate |
