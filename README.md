@@ -136,6 +136,7 @@ Complex data, byte order and the file description are covered in the
 
 ### Advanced
 - [Architecture overview](docs/architecture/OVERVIEW.md): packages and how format detection works
+- [Engineering quality](docs/QUALITY.md): the standard the library is held to and how it is enforced
 - [AGENTS.md](AGENTS.md) and [llms.txt](llms.txt): the same guidance for AI coding agents
 
 ---

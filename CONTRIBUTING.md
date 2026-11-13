@@ -17,14 +17,12 @@ reaches it through a pull request.
 2. Make the change with tests (see Tests below). For a bug fix, write the test first and see it fail.
 3. Run the local checks (see Local checks).
 4. Push the branch and open a pull request against `main`. Reference the issue it closes (`Fixes #123`).
-5. CI must be green. The checks required on `main` are:
-   - `Unit Tests - ubuntu-latest - Go 1.25`
-   - `Unit Tests - macos-latest - Go 1.25`
-   - `Unit Tests - windows-latest - Go 1.25`
-   - `Lint`
-   - `Code Formatting`
-   - `Cross-Build 32-bit`
-6. A maintainer reviews and merges. Releases are tagged from `main` by the maintainers.
+5. CI must be green. The `Required checks` job at the end of every run reports the combined result: it fails when
+   any of the gating jobs failed — the unit tests on Linux, macOS and Windows, the `go.mod` minimum, lint on the
+   Linux, Windows and macOS targets, formatting and the 32-bit cross-build. `Vulncheck` is informational and does
+   not block a merge.
+6. A maintainer reviews every pull request before it is merged. Releases are tagged from `main` by the
+   maintainers.
 
 Branch names are free-form; `feat/...`, `fix/...`, `docs/...` are a good habit.
 
@@ -72,8 +70,11 @@ The Makefile wraps them:
 | `make pre-commit` | `fmt`, `lint`, `test`, `cross-build` |
 | `make examples` | builds `cmd/example` and `examples` |
 
-CI also runs `go vet`, `go mod verify`, and the tests with `-race` on Linux, macOS and Windows, plus `go vet` and
-`go test -short` for `linux/386`. Run the whole matrix locally only when you are chasing a failure that CI reports.
+CI runs the tests with `-race` on Linux, macOS and Windows, on Go `oldstable`, `stable` and the `go.mod` minimum;
+`go vet` and `go mod verify`; golangci-lint on Linux and on the Windows and macOS targets; `gofmt` and `go mod tidy`
+checks; and the 32-bit builds, with `go vet` and the tests for `linux/386`. The linter version is pinned in
+`.github/workflows/test.yml`, so a local `latest` may differ from CI. Run the whole matrix locally only when you are
+chasing a failure that CI reports.
 
 Heavy runs: the Go test cache and temp directory can be placed on another disk with `GOTMPDIR`. Generated files
 (coverage, logs, binaries) do not belong in the repository root; `.gitignore` covers the usual ones.
@@ -103,6 +104,8 @@ reference, UPSTREAM.md records it.
 - [CHANGELOG.md](CHANGELOG.md): Keep a Changelog format with Added, Changed, Fixed and Security sections. Each release
   starts with a short intro, and a behaviour change carries an inline `Upgrading:` note.
 - [docs/guides](docs/guides/): QUICKSTART and DATATYPES. [docs/architecture](docs/architecture/OVERVIEW.md): packages.
+- [docs/QUALITY.md](docs/QUALITY.md): the engineering standard this library is held to, and how each part of it is
+  enforced.
 - [AGENTS.md](AGENTS.md) and [llms.txt](llms.txt): guidance for AI agents that use the library.
 - [examples](examples/README.md): each example has a `main.go` and a README and must build:
   `go vet ./examples/...`.
