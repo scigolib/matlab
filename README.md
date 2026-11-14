@@ -222,7 +222,7 @@ make build        # go build ./...
 make test         # tests with coverage
 make lint         # golangci-lint
 make cross-build  # 32-bit targets
-make ci           # formatting check, tests, lint, 32-bit builds
+make check        # formatting check, tests, lint, 32-bit builds (local subset; CI is the gate)
 
 go run ./scripts/generate-testdata   # regenerate the v7.3 test files
 go run ./scripts/verify-roundtrip    # write-and-read check

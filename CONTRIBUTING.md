@@ -17,12 +17,12 @@ reaches it through a pull request.
 2. Make the change with tests (see Tests below). For a bug fix, write the test first and see it fail.
 3. Run the local checks (see Local checks).
 4. Push the branch and open a pull request against `main`. Reference the issue it closes (`Fixes #123`).
-5. CI must be green. The `Required checks` job at the end of every run reports the combined result: it fails when
-   any of the gating jobs failed — the unit tests on Linux, macOS and Windows, the `go.mod` minimum, lint on the
+5. CI must be green. The required check on `main` is `Required checks`: the job at the end of every run that fails
+   when any gating job failed — the unit tests on Linux, macOS and Windows, the `go.mod` minimum, lint on the
    Linux, Windows and macOS targets, formatting and the 32-bit cross-build. `Vulncheck` is informational and does
    not block a merge.
-6. A maintainer reviews every pull request before it is merged. Releases are tagged from `main` by the
-   maintainers.
+6. A maintainer reviews and approves every pull request before it is merged; `main` requires one approving
+   review. Releases are tagged from `main` by the maintainers.
 
 Branch names are free-form; `feat/...`, `fix/...`, `docs/...` are a good habit.
 
@@ -56,7 +56,7 @@ go test ./...
 golangci-lint run ./... # 0 issues
 ```
 
-The Makefile wraps them:
+The Makefile wraps them for local use:
 
 | Target | Does |
 |---|---|
@@ -66,9 +66,14 @@ The Makefile wraps them:
 | `make lint` | `golangci-lint run --timeout=5m` |
 | `make fmt` | `gofmt -w -s .` and `go mod tidy` |
 | `make cross-build` | builds `linux/386`, `linux/arm` (GOARM=6) and `windows/386` |
-| `make ci` | `fmt-check`, `test`, `lint`, `cross-build` |
+| `make check` | `fmt-check`, `test`, `lint`, `cross-build` — a local convenience, not the gate |
+| `make ci` | alias of `make check` |
 | `make pre-commit` | `fmt`, `lint`, `test`, `cross-build` |
 | `make examples` | builds `cmd/example` and `examples` |
+
+These targets do not replace CI, which runs more: the race detector on three operating systems, several Go
+versions, `govulncheck`, and lint for the Windows and macOS targets. The checks that gate a merge are the CI
+workflow's.
 
 CI runs the tests with `-race` on Linux, macOS and Windows, on Go `oldstable`, `stable` and the `go.mod` minimum;
 `go vet` and `go mod verify`; golangci-lint on Linux and on the Windows and macOS targets; `gofmt` and `go mod tidy`
