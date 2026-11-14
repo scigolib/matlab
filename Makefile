@@ -98,9 +98,13 @@ cross-build:
 dev: fmt lint test
 	@echo "Development checks complete!"
 
-# CI/CD checks (includes formatting check)
-ci: fmt-check test lint cross-build
-	@echo "CI checks passed!"
+# Local convenience, not the CI gate: CI runs more (race on three operating systems, several
+# Go versions, govulncheck, lint for the Windows and macOS targets).
+check: fmt-check test lint cross-build
+	@echo "Local checks passed!"
+
+# Kept for habit; the same as `check`.
+ci: check
 
 # Pre-commit checks
 pre-commit: fmt lint test cross-build
@@ -129,12 +133,13 @@ help:
 	@echo "  make lint          - Run linter"
 	@echo "  make lint-report   - Run linter and save to file"
 	@echo "  make fmt           - Format code"
-	@echo "  make fmt-check     - Check code formatting (CI)"
+	@echo "  make fmt-check     - Check code formatting (no changes)"
 	@echo "  make clean         - Clean build artifacts"
 	@echo "  make examples      - Build all examples"
 	@echo "  make run-example   - Run basic example"
 	@echo "  make dev           - Full development workflow"
-	@echo "  make ci            - CI/CD checks"
+	@echo "  make check         - Local checks (not the CI gate)"
+	@echo "  make ci            - Alias of check"
 	@echo "  make pre-commit    - Pre-commit checks"
 	@echo "  make cross-build   - Build 32-bit targets (386, arm)"
 	@echo "  make install-lint  - Install golangci-lint"
@@ -142,4 +147,4 @@ help:
 	@echo "Version: $(VERSION)"
 
 .PHONY: build test test-coverage test-race benchmark lint lint-report fmt fmt-check clean \
-	examples run-example dev ci pre-commit cross-build install-lint help
+	examples run-example dev check ci pre-commit cross-build install-lint help

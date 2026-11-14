@@ -56,7 +56,7 @@ go test ./...
 golangci-lint run ./... # 0 issues
 ```
 
-The Makefile wraps them:
+The Makefile wraps them for local use:
 
 | Target | Does |
 |---|---|
@@ -66,9 +66,14 @@ The Makefile wraps them:
 | `make lint` | `golangci-lint run --timeout=5m` |
 | `make fmt` | `gofmt -w -s .` and `go mod tidy` |
 | `make cross-build` | builds `linux/386`, `linux/arm` (GOARM=6) and `windows/386` |
-| `make ci` | `fmt-check`, `test`, `lint`, `cross-build` |
+| `make check` | `fmt-check`, `test`, `lint`, `cross-build` — a local convenience, not the gate |
+| `make ci` | alias of `make check` |
 | `make pre-commit` | `fmt`, `lint`, `test`, `cross-build` |
 | `make examples` | builds `cmd/example` and `examples` |
+
+These targets do not replace CI, which runs more: the race detector on three operating systems, several Go
+versions, `govulncheck`, and lint for the Windows and macOS targets. The checks that gate a merge are the CI
+workflow's.
 
 CI runs the tests with `-race` on Linux, macOS and Windows, on Go `oldstable`, `stable` and the `go.mod` minimum;
 `go vet` and `go mod verify`; golangci-lint on Linux and on the Windows and macOS targets; `gofmt` and `go mod tidy`
