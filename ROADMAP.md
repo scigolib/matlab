@@ -414,7 +414,7 @@ v2.0.0 → Only if breaking changes needed
 ## 📖 Dependencies
 
 **Required**:
-- Go 1.25+
+- Go 1.27+
 - github.com/scigolib/hdf5 (v0.15.0 as of v0.3.19) - for v7.3 support
   - Production-ready HDF5 implementation
   - Includes nested datasets and group attributes support

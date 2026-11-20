@@ -17,7 +17,7 @@ read. Do not use it for structures, cell arrays, sparse matrices, function handl
 go get github.com/scigolib/matlab
 ```
 
-Go 1.25 or later. Import `github.com/scigolib/matlab` and `github.com/scigolib/matlab/types`.
+Go 1.27 or later. Import `github.com/scigolib/matlab` and `github.com/scigolib/matlab/types`.
 
 ## Recipes
 

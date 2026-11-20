@@ -9,7 +9,7 @@ Install, read a MAT-file, write one. Both formats go through the same two entry 
 go get github.com/scigolib/matlab
 ```
 
-Go 1.25 or later. There is no C dependency; v7.3 support comes from the pure-Go
+Go 1.27 or later. There is no C dependency; v7.3 support comes from the pure-Go
 [`github.com/scigolib/hdf5`](https://github.com/scigolib/hdf5) module, which `go` fetches by itself.
 
 ## Read a file

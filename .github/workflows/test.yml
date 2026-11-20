@@ -3,7 +3,7 @@ name: Tests
 # GitHub Flow: main is the only long-lived branch and always holds releasable code; work
 # happens in short-lived branches via pull requests.
 #
-# Go: the go.mod minimum, oldstable and stable on Linux, macOS and Windows — the library is
+# Go: the go.mod minimum and stable on Linux, macOS and Windows — the library is
 # cross-platform and the same .mat file must read the same everywhere.
 #
 # The ruleset requires ONE check, the "Required checks" gate at the end: jobs and the matrix
@@ -22,7 +22,7 @@ permissions:
 
 env:
   # Never download a newer Go behind our back: each leg must run the Go it asked for, or the
-  # minimum and oldstable legs prove nothing.
+  # minimum leg proves nothing.
   GOTOOLCHAIN: local
   # golangci-lint: an exact version (its own advice: "don't start to fail all builds at the same
   # time"). Bump in its own PR that fixes the new findings, and with each new Go minor — an
@@ -40,10 +40,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        # oldstable and stable are the two supported Go releases and follow Go's support
-        # policy by themselves. The go.mod minimum is tested by the `test-minimum` job below,
-        # so no fixed version is named here.
-        go-version: [oldstable, stable]
+        # `stable` is the only leg above our floor (go.mod says go 1.27.0): `oldstable` is
+        # Go 1.26 today, below the floor, and cannot build under GOTOOLCHAIN: local. The
+        # go.mod minimum is tested by the `test-minimum` job below.
+        go-version: [stable]
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
