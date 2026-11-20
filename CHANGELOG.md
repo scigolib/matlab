@@ -1,11 +1,13 @@
 ## [Unreleased]
 
 ### Changed
-- **The minimum Go version is now 1.27.0** (`go.mod` said `go 1.25`) — the same floor as
-  `github.com/scigolib/hdf5` v0.16.0 and later, the foundation this library builds on: a module's Go version must
-  be at least its dependencies'. CI keeps the `stable` leg and the job on the `go.mod` minimum; the `oldstable`
-  leg (Go 1.26) is gone, because it is below the floor and cannot build the module under `GOTOOLCHAIN: local`.
-  Code that stays on Go 1.25 or 1.26 keeps working with v0.3.19.
+- **The minimum Go version is now 1.27.0** (`go.mod` said `go 1.25`). We support only Go releases that still
+  receive security fixes (1.26 and 1.27 today); Go 1.27 also enables generic methods, which let one type-safe
+  method replace a family of per-type methods — so the API stays small. We use them only where they replace real
+  duplication. From v0.16.0 the floor will also match the HDF5 module this library builds on — a module's Go
+  version must be at least its dependencies'; the pinned v0.15.0 is still `go 1.25`. CI keeps the `stable` leg and
+  the job on the `go.mod` minimum; the `oldstable` leg (Go 1.26) is gone, because it is below the floor and cannot
+  build the module under `GOTOOLCHAIN: local`. Code that stays on Go 1.25 or 1.26 keeps working with v0.3.19.
 
 ---
 
