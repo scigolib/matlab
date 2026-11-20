@@ -208,7 +208,8 @@ See [ROADMAP.md](ROADMAP.md) for what comes next and [docs/guides/DATATYPES.md](
 ## Development
 
 ### Requirements
-- Go 1.27 or later
+- Go 1.27 or newer — the same floor as the HDF5 module it builds on (`github.com/scigolib/hdf5` v0.16.0 and
+  later): a module's Go version must be at least its dependencies'.
 - [`github.com/scigolib/hdf5`](https://github.com/scigolib/hdf5) for v7.3, a pure Go module that `go` fetches
 - No C dependencies. The race detector needs cgo, so `make test-race` needs a C compiler.
 
