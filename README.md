@@ -4,7 +4,7 @@ A pure Go implementation of the MATLAB `.mat` file formats: read and write MAT-f
 runtime or cgo. Part of the [SciGoLib](https://github.com/scigolib) scientific computing libraries.
 
 [![GitHub Release](https://img.shields.io/github/v/release/scigolib/matlab?include_prereleases&style=flat-square&logo=github&color=blue)](https://github.com/scigolib/matlab/releases/latest)
-[![Go Version](https://img.shields.io/badge/Go-1.25%2B-00ADD8?style=flat-square&logo=go)](https://go.dev/dl/)
+[![Go Version](https://img.shields.io/badge/Go-1.27%2B-00ADD8?style=flat-square&logo=go)](https://go.dev/dl/)
 [![Go Reference](https://pkg.go.dev/badge/github.com/scigolib/matlab.svg)](https://pkg.go.dev/github.com/scigolib/matlab)
 [![GitHub Actions](https://img.shields.io/github/actions/workflow/status/scigolib/matlab/test.yml?branch=main&style=flat-square&logo=github-actions&label=CI)](https://github.com/scigolib/matlab/actions)
 [![Codecov](https://img.shields.io/codecov/c/github/scigolib/matlab?style=flat-square&logo=codecov)](https://codecov.io/gh/scigolib/matlab)
@@ -208,7 +208,7 @@ See [ROADMAP.md](ROADMAP.md) for what comes next and [docs/guides/DATATYPES.md](
 ## Development
 
 ### Requirements
-- Go 1.25 or later
+- Go 1.27 or later
 - [`github.com/scigolib/hdf5`](https://github.com/scigolib/hdf5) for v7.3, a pure Go module that `go` fetches
 - No C dependencies. The race detector needs cgo, so `make test-race` needs a C compiler.
 

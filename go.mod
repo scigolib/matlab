@@ -1,6 +1,6 @@
 module github.com/scigolib/matlab
 
-go 1.25
+go 1.27.0
 
 require (
 	github.com/scigolib/hdf5 v0.15.0

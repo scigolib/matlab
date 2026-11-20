@@ -1,3 +1,12 @@
+## [Unreleased]
+
+### Changed
+- **The minimum Go version is now 1.27.0** (`go.mod` said `go 1.25`). CI keeps the `stable` leg and the job on
+  the `go.mod` minimum; the `oldstable` leg (Go 1.26) is gone, because it is below the floor and cannot build
+  the module under `GOTOOLCHAIN: local`. Code that stays on Go 1.25 or 1.26 keeps working with v0.3.19.
+
+---
+
 ## [0.3.19] - 2026-11-07
 
 A v7.3 file written by this library now starts with the 512-byte MAT header that MATLAB writes in front of its own v7.3

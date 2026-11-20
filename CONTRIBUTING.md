@@ -46,7 +46,7 @@ docs: update README with compressed data limitations
 
 ## Local checks
 
-From the repository root, with Go 1.25 or later (`go.mod` says `go 1.25`) and golangci-lint v2
+From the repository root, with Go 1.27 or later (`go.mod` says `go 1.27.0`) and golangci-lint v2
 (`make install-lint`):
 
 ```bash
@@ -75,7 +75,7 @@ These targets do not replace CI, which runs more: the race detector on three ope
 versions, `govulncheck`, and lint for the Windows and macOS targets. The checks that gate a merge are the CI
 workflow's.
 
-CI runs the tests with `-race` on Linux, macOS and Windows, on Go `oldstable`, `stable` and the `go.mod` minimum;
+CI runs the tests with `-race` on Linux, macOS and Windows, on Go `stable` and the `go.mod` minimum;
 `go vet` and `go mod verify`; golangci-lint on Linux and on the Windows and macOS targets; `gofmt` and `go mod tidy`
 checks; and the 32-bit builds, with `go vet` and the tests for `linux/386`. The linter version is pinned in
 `.github/workflows/test.yml`, so a local `latest` may differ from CI. Run the whole matrix locally only when you are
